@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { useERP } from '../context/ERPContext';
-import { Sale, Product, Client } from '../types';
+import { Sale, Product, Client, getProductUnitSuffix } from '../types';
 import {
   ShoppingCart,
   Search,
@@ -74,7 +74,7 @@ export const SalesView: React.FC = () => {
     const existing = cart.find(item => item.product.id === p.id);
     if (existing) {
       if (existing.quantity >= p.stock) {
-        showToast(`Não é possível adicionar mais unidades. Limite de estoque físico atingido (${p.stock} un).`, 'error');
+        showToast(`Não é possível adicionar mais unidades. Limite de estoque físico atingido (${p.stock} ${getProductUnitSuffix(p.unit)}).`, 'error');
         return;
       }
       setCart(cart.map(item => item.product.id === p.id ? { ...item, quantity: item.quantity + 1 } : item));
@@ -94,7 +94,7 @@ export const SalesView: React.FC = () => {
     }
 
     if (newQty > item.product.stock) {
-      showToast(`Limite de estoque físico atingido (${item.product.stock} un).`, 'error');
+      showToast(`Limite de estoque físico atingido (${item.product.stock} ${getProductUnitSuffix(item.product.unit)}).`, 'error');
       return;
     }
 
@@ -108,7 +108,7 @@ export const SalesView: React.FC = () => {
     const targetQty = Math.max(0, qty);
 
     if (targetQty > item.product.stock) {
-      showToast(`Limite de estoque físico atingido (${item.product.stock} un).`, 'error');
+      showToast(`Limite de estoque físico atingido (${item.product.stock} ${getProductUnitSuffix(item.product.unit)}).`, 'error');
       setCart(cart.map(i => i.product.id === pId ? { ...i, quantity: item.product.stock } : i));
       return;
     }
@@ -250,7 +250,7 @@ export const SalesView: React.FC = () => {
 
                     <div className="w-full pt-1 border-t border-slate-900 flex items-center justify-between text-xs mt-auto">
                       <span className="font-bold text-emerald-400">{formatCurrency(p.price)}</span>
-                      <span className="text-[10px] text-slate-500 font-mono">Qtd: {p.stock}</span>
+                      <span className="text-[10px] text-slate-500 font-mono">Qtd: {p.stock} {getProductUnitSuffix(p.unit)}</span>
                     </div>
                   </button>
                 );

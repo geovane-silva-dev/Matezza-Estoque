@@ -102,6 +102,12 @@ export const ClientsView: React.FC = () => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   };
 
+  // Stats
+  const totalClientsCount = clients.length;
+  const activeClientsCount = clients.filter(c => c.status === 'Ativo').length;
+  const totalBalancesAmount = clients.reduce((sum, c) => sum + c.balance, 0);
+  const clientSalesVolume = sales.filter(s => s.clientId).reduce((sum, s) => sum + s.total, 0);
+
   return (
     <div className="space-y-6 animate-fadeIn text-slate-100">
       {/* HEADER */}
@@ -117,6 +123,57 @@ export const ClientsView: React.FC = () => {
           <Plus className="w-4.5 h-4.5" />
           <span>Cadastrar Cliente</span>
         </button>
+      </div>
+
+      {/* STATS SUMMARY GRID */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-[#03110d] border border-[#08241d]/70 p-4 rounded-2xl flex items-center gap-4">
+          <div className="w-10 h-10 bg-[#00df89]/10 border border-[#00df89]/20 rounded-xl flex items-center justify-center text-[#00df89]">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">Clientes Ativos / Total</span>
+            <span className="text-lg font-black text-white leading-tight font-mono">
+              {activeClientsCount} <span className="text-xs text-slate-500">/ {totalClientsCount}</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-[#03110d] border border-[#08241d]/70 p-4 rounded-2xl flex items-center gap-4">
+          <div className="w-10 h-10 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center text-amber-400">
+            <DollarSign className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">Créditos em Aberto</span>
+            <span className="text-lg font-black text-white leading-tight font-mono">
+              {formatCurrency(totalBalancesAmount)}
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-[#03110d] border border-[#08241d]/70 p-4 rounded-2xl flex items-center gap-4">
+          <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center text-emerald-400">
+            <FileText className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">Faturamento Integrado</span>
+            <span className="text-lg font-black text-white leading-tight font-mono">
+              {formatCurrency(clientSalesVolume)}
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-[#03110d] border border-[#08241d]/70 p-4 rounded-2xl flex items-center gap-4">
+          <div className="w-10 h-10 bg-[#00df89]/10 border border-[#00df89]/20 rounded-xl flex items-center justify-center text-[#00df89]">
+            <Briefcase className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">Média por Cliente</span>
+            <span className="text-lg font-black text-white leading-tight font-mono">
+              {formatCurrency(totalClientsCount > 0 ? clientSalesVolume / totalClientsCount : 0)}
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -143,7 +200,9 @@ export const ClientsView: React.FC = () => {
               </div>
             ) : (
               filteredClients.map((c) => {
-                const clientSalesCount = getClientSales(c.id).length;
+                const clientSales = getClientSales(c.id);
+                const clientSalesCount = clientSales.length;
+                const totalSpent = clientSales.reduce((sum, s) => sum + s.total, 0);
                 
                 return (
                   <div
@@ -171,16 +230,20 @@ export const ClientsView: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-slate-800/60 text-center text-xs">
-                      <div className="bg-slate-950/40 p-2 border border-slate-800/40 rounded-xl">
-                        <span className="text-[8px] text-slate-500 block uppercase font-bold">Crédito / Saldo</span>
-                        <span className={`font-bold font-mono ${c.balance > 0 ? 'text-amber-400' : 'text-slate-400'}`}>
+                    <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-slate-800/60 text-center text-[10px]">
+                      <div className="bg-slate-950/40 p-1.5 border border-slate-800/40 rounded-xl">
+                        <span className="text-[8px] text-slate-500 block uppercase font-bold">Saldo</span>
+                        <span className={`font-bold font-mono block truncate ${c.balance > 0 ? 'text-amber-400' : 'text-slate-400'}`}>
                           {formatCurrency(c.balance)}
                         </span>
                       </div>
-                      <div className="bg-slate-950/40 p-2 border border-slate-800/40 rounded-xl">
-                        <span className="text-[8px] text-slate-500 block uppercase font-bold">Faturamentos</span>
-                        <span className="font-bold text-white font-mono">{clientSalesCount} transações</span>
+                      <div className="bg-slate-950/40 p-1.5 border border-slate-800/40 rounded-xl">
+                        <span className="text-[8px] text-slate-500 block uppercase font-bold">Compras</span>
+                        <span className="font-bold text-white font-mono block">{clientSalesCount} un</span>
+                      </div>
+                      <div className="bg-slate-950/40 p-1.5 border border-slate-800/40 rounded-xl">
+                        <span className="text-[8px] text-slate-500 block uppercase font-bold">Faturado</span>
+                        <span className="font-bold text-emerald-400 font-mono block truncate">{formatCurrency(totalSpent)}</span>
                       </div>
                     </div>
 

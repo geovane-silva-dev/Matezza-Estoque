@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useERP } from '../context/ERPContext';
-import { Product, Production } from '../types';
+import { Product, Production, getProductUnitSuffix } from '../types';
 import {
   Play,
   Sparkles,
@@ -68,8 +68,8 @@ export const ProductionView: React.FC = () => {
   // Form states for Creating a Recipe
   const [newRecipeName, setNewRecipeName] = useState('');
   const [newRecipeProductId, setNewRecipeProductId] = useState('');
-  const [newRecipeItems, setNewRecipeItems] = useState<{ productId: string; name: string; baseQty: number }[]>([
-    { productId: '', name: 'Insumo', baseQty: 1.0 }
+  const [newRecipeItems, setNewRecipeItems] = useState<{ productId: string; name: string; baseQty: string | number }[]>([
+    { productId: '', name: 'Insumo', baseQty: '1.0' }
   ]);
 
   // Persistent Recipes list initialized with fallback
@@ -85,7 +85,7 @@ export const ProductionView: React.FC = () => {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        return parsed.filter((r: any) => r.id !== 'REC-001' && r.id !== 'REC-002' && r.id !== 'REC-003');
+        return parsed;
       } catch (e) {
         console.error('Error parsing recipes:', e);
       }
@@ -226,7 +226,7 @@ export const ProductionView: React.FC = () => {
       status: 'Em andamento'
     });
 
-    alert(`Ordem de serviço industrial para ${quantity} un de "${calcs.targetProduct.name}" iniciada com sucesso! As matérias-primas foram debitadas.`);
+    alert(`Ordem de serviço industrial para ${quantity} un de "${calcs.targetProduct.name}" iniciada com sucesso! As matérias-primas serão debitadas quando a produção for finalizada/confirmada.`);
     setActiveSubTab('history');
   };
 
@@ -234,7 +234,7 @@ export const ProductionView: React.FC = () => {
     setEditingRecipe(null);
     setNewRecipeName('');
     setNewRecipeProductId('');
-    setNewRecipeItems([{ productId: '', name: 'Insumo', baseQty: 1.0 }]);
+    setNewRecipeItems([{ productId: '', name: 'Insumo', baseQty: '1.0' }]);
     setShowCreateRecipeModal(true);
   };
 
@@ -245,7 +245,7 @@ export const ProductionView: React.FC = () => {
     setNewRecipeItems(recipe.items.map(item => ({
       productId: item.productId,
       name: item.name,
-      baseQty: item.baseQty
+      baseQty: String(item.baseQty)
     })));
     setShowCreateRecipeModal(true);
   };
@@ -258,7 +258,11 @@ export const ProductionView: React.FC = () => {
       return;
     }
 
-    const invalidItem = newRecipeItems.find(item => !item.productId || item.baseQty <= 0);
+    const parseQty = (val: any) => {
+      const s = String(val).replace(',', '.');
+      return parseFloat(s) || 0;
+    };
+    const invalidItem = newRecipeItems.find(item => !item.productId || parseQty(item.baseQty) <= 0);
     if (invalidItem) {
       alert('Por favor, preencha todos os insumos selecionados com quantidades válidas.');
       return;
@@ -276,7 +280,7 @@ export const ProductionView: React.FC = () => {
               return {
                 productId: item.productId,
                 name: dbMaterial ? dbMaterial.name : 'Insumo',
-                baseQty: item.baseQty
+                baseQty: parseQty(item.baseQty)
               };
             })
           };
@@ -287,7 +291,11 @@ export const ProductionView: React.FC = () => {
       setEditingRecipe(null);
       alert('Fórmula industrial atualizada com sucesso!');
     } else {
-      const newId = `REC-${String(recipes.length + 1).padStart(3, '0')}`;
+      const maxIdNum = recipes.reduce((max, r) => {
+        const num = parseInt(r.id.replace('REC-', ''), 10);
+        return isNaN(num) ? max : Math.max(max, num);
+      }, 0);
+      const newId = `REC-${String(maxIdNum + 1).padStart(3, '0')}`;
       const newRecipe: Recipe = {
         id: newId,
         name: newRecipeName,
@@ -297,7 +305,7 @@ export const ProductionView: React.FC = () => {
           return {
             productId: item.productId,
             name: dbMaterial ? dbMaterial.name : 'Insumo',
-            baseQty: item.baseQty
+            baseQty: parseQty(item.baseQty)
           };
         })
       };
@@ -310,11 +318,11 @@ export const ProductionView: React.FC = () => {
     // Reset fields
     setNewRecipeName('');
     setNewRecipeProductId('');
-    setNewRecipeItems([{ productId: '', name: 'Insumo', baseQty: 1.0 }]);
+    setNewRecipeItems([{ productId: '', name: 'Insumo', baseQty: '1.0' }]);
   };
 
   const handleAddRecipeItem = () => {
-    setNewRecipeItems([...newRecipeItems, { productId: '', name: 'Insumo', baseQty: 1.0 }]);
+    setNewRecipeItems([...newRecipeItems, { productId: '', name: 'Insumo', baseQty: '1.0' }]);
   };
 
   const handleRemoveRecipeItem = (index: number) => {
@@ -331,7 +339,11 @@ export const ProductionView: React.FC = () => {
       const dbM = products.find(p => p.id === value);
       items[index].name = dbM ? dbM.name : 'Insumo';
     } else {
-      items[index].baseQty = Math.max(0.001, Number(value));
+      if (value === '') {
+        items[index].baseQty = '0';
+      } else {
+        items[index].baseQty = value;
+      }
     }
     setNewRecipeItems(items);
   };
@@ -504,7 +516,7 @@ export const ProductionView: React.FC = () => {
                   </h3>
                   {calcs && (
                     <span className="text-[9px] bg-[#00df89]/10 text-[#00df89] border border-[#00df89]/25 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider font-mono">
-                      Previsão Máxima: {calcs.maxProduceable} unidades
+                      Previsão Máxima: {calcs.maxProduceable} {getProductUnitSuffix(calcs.targetProduct?.unit)}
                     </span>
                   )}
                 </div>
@@ -559,7 +571,7 @@ export const ProductionView: React.FC = () => {
                       <div className="bg-[#03100c]/40 p-4 border border-[#0b2c23]/80 rounded-2xl space-y-2">
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-slate-400">Custo Unitário da Receita:</span>
-                          <span className="font-bold text-white font-mono">{formatCurrency(calcs.unitCost)} / unidade</span>
+                          <span className="font-bold text-white font-mono">{formatCurrency(calcs.unitCost)} / {getProductUnitSuffix(calcs.targetProduct?.unit)}</span>
                         </div>
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-slate-400 font-semibold">Custo Total de Matéria-Prima:</span>
@@ -640,14 +652,14 @@ export const ProductionView: React.FC = () => {
                             {/* Make it say "Insumo" strictly if name is "Insumo", or the customized name */}
                             <span className="text-xs font-bold text-white block">{rm.name}</span>
                             <span className="text-[10px] text-slate-500 font-semibold block">
-                              Consumo: <strong className="text-slate-400">{rm.qtyNeeded.toFixed(0)} unidades</strong>
+                              Consumo: <strong className="text-slate-400">{Number(rm.qtyNeeded.toFixed(4))} {getProductUnitSuffix(products.find(p => p.id === rm.productId)?.unit)}</strong>
                             </span>
                           </div>
                         </div>
 
                         <div className="text-right space-y-1">
                           <div className="flex items-center justify-end gap-1.5 font-mono text-xs font-black text-white">
-                            <span>{rm.qtyNeeded.toFixed(0)} / {rm.stockAvailable.toFixed(0)}</span>
+                            <span>{Number(rm.qtyNeeded.toFixed(4))} / {Number(rm.stockAvailable.toFixed(4))} {getProductUnitSuffix(products.find(p => p.id === rm.productId)?.unit)}</span>
                             <span className={`w-2 h-2 rounded-full ${rm.hasEnough ? 'bg-[#00df89]' : 'bg-rose-500'}`} />
                           </div>
 
@@ -657,7 +669,7 @@ export const ProductionView: React.FC = () => {
                             </span>
                           ) : (
                             <span className="text-[9px] font-bold uppercase tracking-wider text-rose-400 bg-rose-950/40 border border-rose-900/40 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
-                              ⚠️ Falta {(rm.qtyNeeded - rm.stockAvailable).toFixed(0)} unidades!
+                              ⚠️ Falta {Number((rm.qtyNeeded - rm.stockAvailable).toFixed(4))} {getProductUnitSuffix(products.find(p => p.id === rm.productId)?.unit)}!
                             </span>
                           )}
                         </div>
@@ -752,7 +764,7 @@ export const ProductionView: React.FC = () => {
                           return (
                             <div key={index} className="flex justify-between text-[10px] text-slate-300">
                               <span>• {it.name === 'Insumo' && dbM ? dbM.name : it.name}</span>
-                              <span className="font-mono text-emerald-400 font-bold">{it.baseQty} un</span>
+                              <span className="font-mono text-emerald-400 font-bold">{it.baseQty} {getProductUnitSuffix(dbM?.unit)}</span>
                             </div>
                           );
                         })}
@@ -848,7 +860,7 @@ export const ProductionView: React.FC = () => {
                             )}
                           </td>
                           <td className="py-3.5 px-4 text-center font-mono font-bold text-white">
-                            {prod.quantity} un
+                            {prod.quantity} {getProductUnitSuffix(products.find(p => p.id === prod.productId)?.unit)}
                           </td>
                           <td className="py-3.5 px-4 text-center font-mono text-emerald-400 font-semibold">
                             {formatCurrency(prod.totalCost)}
@@ -870,7 +882,7 @@ export const ProductionView: React.FC = () => {
                                   <button
                                     onClick={() => {
                                       updateProductionStatus(prod.id, 'Finalizado');
-                                      alert('Campanha industrial finalizada! Lotes de produtos acabados foram adicionados ao estoque.');
+                                      alert('Campanha industrial finalizada! Lotes de produtos acabados foram adicionados ao estoque e matérias-primas foram debitadas.');
                                     }}
                                     className="px-2 py-1 bg-[#06241c] hover:bg-[#0a352a] border border-[#0d4738] rounded-lg text-[#00df89] font-bold text-[9px] uppercase transition-all cursor-pointer"
                                   >
@@ -982,22 +994,25 @@ export const ProductionView: React.FC = () => {
                       >
                         <option value="">— Insumo / Matéria-prima —</option>
                         {rawMaterialsPool.map(m => (
-                          <option key={m.id} value={m.id}>{m.name} (Estoque: {m.stock})</option>
+                          <option key={m.id} value={m.id}>{m.name} (Estoque: {m.stock} {getProductUnitSuffix(m.unit)})</option>
                         ))}
                       </select>
 
                       <div className="w-24 shrink-0 flex items-center bg-[#03100c] border border-[#0b2d25] rounded-xl overflow-hidden pr-2">
                         <input
-                          type="number"
-                          step="0.01"
-                          min="0.001"
+                          type="text"
                           required
                           value={item.baseQty}
-                          onChange={(e) => handleRecipeItemChange(index, 'baseQty', e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9.,]/g, '');
+                            handleRecipeItemChange(index, 'baseQty', val);
+                          }}
                           className="w-full bg-transparent py-2 px-3 text-xs text-white font-mono focus:outline-none text-right"
-                          placeholder="Qtd"
+                          placeholder="0"
                         />
-                        <span className="text-[9px] text-slate-500 font-bold uppercase">un</span>
+                        <span className="text-[9px] text-[#00df89] font-bold uppercase">
+                          {getProductUnitSuffix(products.find(p => p.id === item.productId)?.unit)}
+                        </span>
                       </div>
 
                       <button

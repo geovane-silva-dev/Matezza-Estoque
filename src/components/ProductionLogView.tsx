@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { useERP } from '../context/ERPContext';
+import { getProductUnitSuffix } from '../types';
 import {
   Factory,
   CheckCircle,
@@ -276,7 +277,7 @@ export const ProductionLogView: React.FC = () => {
                           )}
                         </td>
                         <td className="py-3.5 px-4 text-center font-mono font-bold">
-                          {prod.quantity} un
+                          {prod.quantity} {getProductUnitSuffix(products.find(p => p.id === prod.productId)?.unit)}
                         </td>
                         <td className="py-3.5 px-4 text-center font-mono text-slate-400">
                           {formatCurrency(prod.totalCost)}
@@ -305,7 +306,7 @@ export const ProductionLogView: React.FC = () => {
                                 <button
                                   onClick={() => {
                                     updateProductionStatus(prod.id, 'Finalizado');
-                                    alert('Campanha industrial finalizada! Lotes de produtos acabados foram adicionados ao estoque.');
+                                    alert('Campanha industrial finalizada! Lotes de produtos acabados foram adicionados ao estoque e matérias-primas foram debitadas.');
                                   }}
                                   className="px-2 py-1 bg-[#06241c] hover:bg-[#0a352a] border border-[#0d4738] rounded-lg text-[#00df89] font-bold text-[10px] uppercase transition-all cursor-pointer"
                                 >
@@ -400,7 +401,7 @@ export const ProductionLogView: React.FC = () => {
                   >
                     {finishedProductsList.map(p => (
                       <option key={p.id} value={p.id}>
-                        {p.name} (Estoque atual: {p.stock} un)
+                        {p.name} (Estoque atual: {p.stock} {getProductUnitSuffix(p.unit)})
                       </option>
                     ))}
                   </select>

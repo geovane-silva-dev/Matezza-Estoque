@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { useERP } from '../context/ERPContext';
-import { Category } from '../types';
+import { Category, getProductUnitSuffix } from '../types';
 import { 
   FolderPlus, 
   Trash2, 
@@ -495,7 +495,7 @@ export const CategoriesView: React.FC = () => {
                           </div>
                           <div className="text-right space-y-0.5">
                             <span className="text-[10px] font-semibold text-slate-400 block">
-                              Estoque: <strong className="text-white font-black">{p.stock}</strong> <span className="text-slate-500 text-[9px]">{p.unit ? p.unit.split(' ')[0] : 'un'}</span>
+                              Estoque: <strong className="text-white font-black">{p.stock}</strong> <span className="text-[#00df89] text-[9px] font-bold uppercase">{getProductUnitSuffix(p.unit)}</span>
                             </span>
                             <span className="text-[9px] font-bold text-emerald-400 block font-mono">
                               {p.isRawMaterial ? `Custo: ${formatCurrency(p.cost)}` : `Venda: ${formatCurrency(p.price)}`}

@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { useERP } from '../context/ERPContext';
-import { Product } from '../types';
+import { Product, getProductUnitSuffix } from '../types';
 import {
   Search,
   Plus,
@@ -69,8 +69,8 @@ export const ProductsView: React.FC = () => {
 
   // Form states for Product
   const [name, setName] = useState('');
-  const [price, setPrice] = useState(0);
-  const [cost, setCost] = useState(0);
+  const [price, setPrice] = useState<string>('');
+  const [cost, setCost] = useState<string>('');
   const [supplier, setSupplier] = useState('');
   const [category, setCategory] = useState('');
   const [barcode, setBarcode] = useState('');
@@ -92,8 +92,8 @@ export const ProductsView: React.FC = () => {
   const openAddModal = () => {
     setEditingProduct(null);
     setName('');
-    setPrice(0);
-    setCost(0);
+    setPrice('');
+    setCost('');
     setSupplier('');
     setCategory(categories[0]?.name || 'Geral');
     setBarcode('BM-' + Math.floor(100 + Math.random() * 900).toString());
@@ -113,8 +113,8 @@ export const ProductsView: React.FC = () => {
   const openEditModal = (p: Product) => {
     setEditingProduct(p);
     setName(p.name);
-    setPrice(p.price);
-    setCost(p.cost);
+    setPrice(p.price === 0 ? '' : String(p.price));
+    setCost(p.cost === 0 ? '' : String(p.cost));
     setSupplier(p.supplier);
     setCategory(p.category);
     setBarcode(p.barcode);
@@ -135,13 +135,15 @@ export const ProductsView: React.FC = () => {
     e.preventDefault();
     if (!name.trim()) return;
 
-    const marginCalc = price > 0 ? Math.round(((price - cost) / price) * 100) : 0;
+    const priceNum = parseFloat(price) || 0;
+    const costNum = parseFloat(cost) || 0;
+    const marginCalc = priceNum > 0 ? Math.round(((priceNum - costNum) / priceNum) * 100) : 0;
     const isRaw = productType === 'raw';
 
     const productPayload = {
       name: name.trim(),
-      price: isRaw ? 0 : price,
-      cost,
+      price: isRaw ? 0 : priceNum,
+      cost: costNum,
       margin: isRaw ? 0 : marginCalc,
       supplier: supplier.trim() || 'Indefinido',
       category,
@@ -233,7 +235,7 @@ export const ProductsView: React.FC = () => {
                       : 'bg-[#03100c] border-[#0b2d25] text-slate-400 hover:text-white'
                   }`}
                 >
-                  {type === 'all' ? 'Todos' : type === 'finished' ? 'Acabados' : 'M-Primas'}
+                  {type === 'all' ? 'Todos' : type === 'finished' ? 'Produtos Finais' : 'M-Primas'}
                 </button>
               ))}
             </div>
@@ -287,7 +289,7 @@ export const ProductsView: React.FC = () => {
                       <span className={`text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                         p.isRawMaterial ? 'bg-[#0f241a] text-[#00df89] border border-emerald-900/30' : 'bg-blue-950/40 text-blue-400 border border-blue-900/30'
                       }`}>
-                        {p.isRawMaterial ? 'M-Prima' : p.productType === 'both' ? 'Ambos' : 'Acabado'}
+                        {p.isRawMaterial ? 'M-Prima' : p.productType === 'both' ? 'Ambos' : 'Produto Final'}
                       </span>
                     </div>
 
@@ -313,7 +315,7 @@ export const ProductsView: React.FC = () => {
                       <div className="bg-[#03100c] p-2 rounded-xl border border-[#0b2d25]/60 flex items-center justify-between">
                         <div>
                           <span className="text-[8px] text-slate-500 uppercase tracking-widest font-bold block">Estoque</span>
-                          <span className="text-xs font-bold text-white font-mono">{p.stock} un</span>
+                          <span className="text-xs font-bold text-white font-mono">{p.stock} {getProductUnitSuffix(p.unit)}</span>
                         </div>
                         <span className="text-[9px] text-slate-500">Mín: {p.minQuantity}</span>
                       </div>
@@ -407,17 +409,40 @@ export const ProductsView: React.FC = () => {
                 <div>
                   <label className="block text-xs font-bold text-[#00df89] mb-1.5 uppercase tracking-wide">Unidade *</label>
                   <select
-                    value={unit}
-                    onChange={(e) => setUnit(e.target.value)}
+                    value={['Lata / Litro (L)', 'Quilo (Kg)', 'Unidade (un)', 'Pacote (pct)', 'Grama (g)', 'Mililitro (ml)'].includes(unit) ? unit : 'Custom'}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === 'Custom') {
+                        setUnit('Grama (g)');
+                      } else {
+                        setUnit(val);
+                      }
+                    }}
                     className="w-full bg-[#03100c] border border-[#0b2d25] rounded-xl py-2.5 px-4 text-xs font-medium text-white focus:border-[#00df89]/60 focus:outline-none cursor-pointer transition-all appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2300df89%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:16px_16px] bg-[right_16px_center] bg-no-repeat pr-10"
                   >
                     <option value="Lata / Litro (L)">Lata / Litro (L)</option>
                     <option value="Quilo (Kg)">Quilo (Kg)</option>
-                    <option value="Unidade (Un)">Unidade (Un)</option>
-                    <option value="Pacote (Pct)">Pacote (Pct)</option>
+                    <option value="Unidade (un)">Unidade (un)</option>
+                    <option value="Pacote (pct)">Pacote (pct)</option>
                     <option value="Grama (g)">Grama (g)</option>
                     <option value="Mililitro (ml)">Mililitro (ml)</option>
+                    <option value="Custom">Customizado / Outro...</option>
                   </select>
+                  {!['Lata / Litro (L)', 'Quilo (Kg)', 'Unidade (un)', 'Pacote (pct)', 'Grama (g)', 'Mililitro (ml)'].includes(unit) && (
+                    <div className="mt-2">
+                      <input
+                        type="text"
+                        required
+                        value={unit}
+                        onChange={(e) => setUnit(e.target.value)}
+                        placeholder="Ex: canudo unidade, erva:g, pacote,pct"
+                        className="w-full bg-[#03100c] border border-[#0b2d25] rounded-xl py-2 px-3 text-xs text-white focus:border-[#00df89]/60 focus:outline-none transition-all font-mono"
+                      />
+                      <p className="text-[10px] text-slate-500 mt-1">
+                        Digite a unidade desejada, ex: <strong className="text-slate-400">erva:g</strong> ou <strong className="text-slate-400">pacote,pct</strong>
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -430,7 +455,7 @@ export const ProductsView: React.FC = () => {
                     type="button"
                     onClick={() => {
                       setProductType('final');
-                      if (price === 0) setPrice(100);
+                      if (!price || parseFloat(price) === 0) setPrice('100');
                     }}
                     className={`p-3 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-all border ${
                       productType === 'final'
@@ -471,7 +496,7 @@ export const ProductsView: React.FC = () => {
                     type="button"
                     onClick={() => {
                       setProductType('both');
-                      if (price === 0) setPrice(100);
+                      if (!price || parseFloat(price) === 0) setPrice('100');
                     }}
                     className={`p-3 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-all border ${
                       productType === 'both'
@@ -569,8 +594,8 @@ export const ProductsView: React.FC = () => {
                     type="number"
                     step="0.01"
                     required
-                    value={cost === 0 ? '' : cost}
-                    onChange={(e) => setCost(Number(e.target.value))}
+                    value={cost}
+                    onChange={(e) => setCost(e.target.value)}
                     className="w-full bg-[#03100c] border border-[#0b2d25] rounded-xl py-2.5 px-4 text-xs text-white focus:border-[#00df89]/60 focus:outline-none font-mono"
                     placeholder="0,00"
                   />
@@ -582,8 +607,8 @@ export const ProductsView: React.FC = () => {
                     step="0.01"
                     required={productType !== 'raw'}
                     disabled={productType === 'raw'}
-                    value={productType === 'raw' ? '0' : (price === 0 ? '' : price)}
-                    onChange={(e) => setPrice(Number(e.target.value))}
+                    value={productType === 'raw' ? '0' : price}
+                    onChange={(e) => setPrice(e.target.value)}
                     className={`w-full border rounded-xl py-2.5 px-4 text-xs font-mono focus:outline-none transition-all ${
                       productType === 'raw'
                         ? 'bg-[#020d0a] border-[#0b2d25]/50 text-slate-500 cursor-not-allowed'
@@ -598,10 +623,7 @@ export const ProductsView: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-[#00df89] mb-1.5 uppercase tracking-wide">
-                    Estoque Inicial ({(() => {
-                      const suffix = unit.match(/\(([^)]+)\)/);
-                      return suffix ? suffix[1] : 'un';
-                    })()}) *
+                    Estoque Inicial ({getProductUnitSuffix(unit)}) *
                   </label>
                   <input
                     type="number"

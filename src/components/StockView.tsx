@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { useERP } from '../context/ERPContext';
-import { Product } from '../types';
+import { Product, getProductUnitSuffix } from '../types';
 import {
   Search,
   Plus,
@@ -117,7 +117,7 @@ export const StockView: React.FC = () => {
                       p.stock === 0 ? 'bg-rose-950/80 text-rose-400 border border-rose-900/40' : 'bg-amber-950/80 text-amber-400 border border-amber-900/40'
                     }`}
                   >
-                    {p.name} ({p.stock} un)
+                    {p.name} ({p.stock} {getProductUnitSuffix(p.unit)})
                   </span>
                 ))}
             </div>
@@ -216,11 +216,11 @@ export const StockView: React.FC = () => {
                           <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
                             p.isRawMaterial ? 'bg-[#0f241a] text-emerald-400 border border-emerald-900/30' : 'bg-blue-950/40 text-blue-400 border border-blue-900/30'
                           }`}>
-                            {p.isRawMaterial ? 'M-Prima' : 'Acabado'}
+                            {p.isRawMaterial ? 'M-Prima' : p.productType === 'both' ? 'Ambos' : 'Produto Final'}
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-center font-mono font-bold text-sm text-white">
-                          {p.stock} un
+                          {p.stock} {getProductUnitSuffix(p.unit)}
                         </td>
                         <td className="py-3.5 px-4 text-center">
                           {isOut ? (

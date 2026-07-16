@@ -154,3 +154,71 @@ export interface Toast {
   type: 'success' | 'error' | 'info';
 }
 
+const unitAbbreviationMap: Record<string, string> = {
+  'unidade': 'un',
+  'unidades': 'un',
+  'grama': 'g',
+  'gramas': 'g',
+  'pacote': 'pct',
+  'pacotes': 'pct',
+  'quilo': 'kg',
+  'quilos': 'kg',
+  'quilograma': 'kg',
+  'quilogramas': 'kg',
+  'litro': 'L',
+  'litros': 'L',
+  'mililitro': 'ml',
+  'mililitros': 'ml'
+};
+
+export function getProductUnitSuffix(unit?: string): string {
+  if (!unit) return 'un';
+  const u = unit.trim();
+  
+  const mapUnit = (str: string): string => {
+    const s = str.toLowerCase().trim();
+    if (unitAbbreviationMap[s]) {
+      return unitAbbreviationMap[s];
+    }
+    return s;
+  };
+
+  // 1. Check for colon-based suffix, e.g., "erva:g" or "erva: g"
+  if (u.includes(':')) {
+    const parts = u.split(':');
+    const suffix = parts[parts.length - 1].trim();
+    if (suffix) return mapUnit(suffix);
+  }
+  
+  // 2. Check for comma-based suffix, e.g., "pacote,pct" or "pacote, pct"
+  if (u.includes(',')) {
+    const parts = u.split(',');
+    const suffix = parts[parts.length - 1].trim();
+    if (suffix) return mapUnit(suffix);
+  }
+  
+  // 3. Check for parentheses, e.g., "Unidade (un)", "Canudo (unidade)"
+  const match = u.match(/\(([^)]+)\)/);
+  if (match) {
+    return mapUnit(match[1].trim());
+  }
+  
+  // 4. If it contains space, e.g., "canudo unidade" -> see if the last word is mapped or short
+  if (u.includes(' ')) {
+    const words = u.split(/\s+/);
+    const lastWord = words[words.length - 1].toLowerCase();
+    const mapped = mapUnit(lastWord);
+    if (mapped.length <= 4) {
+      return mapped;
+    }
+  }
+
+  // 5. Default: if the whole unit string is mapped, return mapped, otherwise if short (<= 4 chars), return it as is
+  const mappedWhole = mapUnit(u);
+  if (mappedWhole.length <= 4) {
+    return mappedWhole;
+  }
+
+  return 'un';
+}
+

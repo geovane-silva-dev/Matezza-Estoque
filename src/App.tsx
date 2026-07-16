@@ -17,6 +17,7 @@ import { ProductionView } from './components/ProductionView';
 import { CategoriesView } from './components/CategoriesView';
 import { ProductsView } from './components/ProductsView';
 import { EmployeesView } from './components/EmployeesView';
+import { ClientsView } from './components/ClientsView';
 import {
   Bell,
   Menu,
@@ -57,6 +58,8 @@ function ERPShell() {
         return <StockView />;
       case 'sales':
         return <SalesView />;
+      case 'clients':
+        return <ClientsView />;
       case 'expenses':
         return <ExpensesView />;
       case 'production':

@@ -644,30 +644,32 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: new Date().toISOString()
     };
 
-    // Deduct raw materials instantly when starting production
-    const updatedProducts = products.map(p => {
-      const materialUsed = prodData.rawMaterials.find(rm => rm.productId === p.id);
-      if (materialUsed) {
-        const next = { ...p, stock: Math.max(0, p.stock - materialUsed.quantityUsed), updatedAt: new Date().toISOString() };
-        setTimeout(() => checkLowStock(next), 100);
-        return next;
-      }
-      return p;
-    });
-
-    setProducts(updatedProducts);
-    saveToStorage('matezza_products', updatedProducts);
-
-    // If production is immediately finished, add to stock of finished product
+    // If production status is immediately 'Finalizado', apply stock impact
     if (newProduction.status === 'Finalizado') {
-      const updatedProdsWithFinished = updatedProducts.map(p => {
+      const updatedProducts = products.map(p => {
+        let nextStock = p.stock;
+        
+        // Deduct raw materials
+        const materialUsed = newProduction.rawMaterials.find(rm => rm.productId === p.id);
+        if (materialUsed) {
+          nextStock = Math.max(0, nextStock - materialUsed.quantityUsed);
+        }
+        
+        // Add finished product
         if (p.id === newProduction.productId) {
-          return { ...p, stock: p.stock + newProduction.quantity, updatedAt: new Date().toISOString() };
+          nextStock += newProduction.quantity;
+        }
+
+        if (nextStock !== p.stock) {
+          const next = { ...p, stock: nextStock, updatedAt: new Date().toISOString() };
+          setTimeout(() => checkLowStock(next), 100);
+          return next;
         }
         return p;
       });
-      setProducts(updatedProdsWithFinished);
-      saveToStorage('matezza_products', updatedProdsWithFinished);
+
+      setProducts(updatedProducts);
+      saveToStorage('matezza_products', updatedProducts);
     }
 
     const updatedProductions = [newProduction, ...productions];
@@ -684,44 +686,54 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const previousStatus = currentProduction.status;
     if (previousStatus === status) return;
 
-    // Handle inventory changes based on state transitions
     let updatedProducts = [...products];
 
-    if (previousStatus === 'Em andamento' && status === 'Finalizado') {
-      // Add the final products to stock
+    const isPrevFinalizado = previousStatus === 'Finalizado';
+    const isNewFinalizado = status === 'Finalizado';
+
+    if (!isPrevFinalizado && isNewFinalizado) {
+      // Shifting to Finalizado: Deduct raw materials AND add finished product to stock
       updatedProducts = products.map(p => {
+        let nextStock = p.stock;
+        
+        // Deduct raw materials
+        const used = currentProduction.rawMaterials.find(rm => rm.productId === p.id);
+        if (used) {
+          nextStock = Math.max(0, nextStock - used.quantityUsed);
+        }
+        
+        // Add finished product
         if (p.id === currentProduction.productId) {
-          return { ...p, stock: p.stock + currentProduction.quantity, updatedAt: new Date().toISOString() };
+          nextStock += currentProduction.quantity;
+        }
+
+        if (nextStock !== p.stock) {
+          const next = { ...p, stock: nextStock, updatedAt: new Date().toISOString() };
+          setTimeout(() => checkLowStock(next), 100);
+          return next;
         }
         return p;
       });
-    } else if (previousStatus === 'Em andamento' && status === 'Cancelado') {
-      // Return the raw materials back to stock
+    } else if (isPrevFinalizado && !isNewFinalizado) {
+      // Shifting away from Finalizado: Add back raw materials AND subtract finished product from stock
       updatedProducts = products.map(p => {
-        const materialRefund = currentProduction.rawMaterials.find(rm => rm.productId === p.id);
-        if (materialRefund) {
-          return { ...p, stock: p.stock + materialRefund.quantityUsed, updatedAt: new Date().toISOString() };
+        let nextStock = p.stock;
+        
+        // Refund raw materials
+        const used = currentProduction.rawMaterials.find(rm => rm.productId === p.id);
+        if (used) {
+          nextStock += used.quantityUsed;
         }
-        return p;
-      });
-    } else if (previousStatus === 'Cancelado' && status === 'Em andamento') {
-      // Deduct raw materials again
-      updatedProducts = products.map(p => {
-        const materialUsed = currentProduction.rawMaterials.find(rm => rm.productId === p.id);
-        if (materialUsed) {
-          return { ...p, stock: Math.max(0, p.stock - materialUsed.quantityUsed), updatedAt: new Date().toISOString() };
-        }
-        return p;
-      });
-    } else if (previousStatus === 'Finalizado' && status === 'Cancelado') {
-      // Refund raw materials AND subtract finished products from stock
-      updatedProducts = products.map(p => {
+        
+        // Subtract finished product
         if (p.id === currentProduction.productId) {
-          return { ...p, stock: Math.max(0, p.stock - currentProduction.quantity), updatedAt: new Date().toISOString() };
+          nextStock = Math.max(0, nextStock - currentProduction.quantity);
         }
-        const materialRefund = currentProduction.rawMaterials.find(rm => rm.productId === p.id);
-        if (materialRefund) {
-          return { ...p, stock: p.stock + materialRefund.quantityUsed, updatedAt: new Date().toISOString() };
+
+        if (nextStock !== p.stock) {
+          const next = { ...p, stock: nextStock, updatedAt: new Date().toISOString() };
+          setTimeout(() => checkLowStock(next), 100);
+          return next;
         }
         return p;
       });
@@ -743,27 +755,22 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     let tempProducts = [...products];
 
-    // 1. REVERT old production stock impact
-    if (oldProd.status === 'Em andamento') {
-      // Revert raw material deduction (add back)
-      tempProducts = tempProducts.map(p => {
-        const used = oldProd.rawMaterials.find(rm => rm.productId === p.id);
-        if (used) {
-          return { ...p, stock: p.stock + used.quantityUsed, updatedAt: new Date().toISOString() };
-        }
-        return p;
-      });
-    } else if (oldProd.status === 'Finalizado') {
-      // Revert raw material deduction (add back) AND revert finished product addition (subtract)
+    // 1. REVERT old production stock impact (only if it was Finalizado)
+    if (oldProd.status === 'Finalizado') {
       tempProducts = tempProducts.map(p => {
         let nextStock = p.stock;
+        
+        // Subtract finished product
         if (p.id === oldProd.productId) {
           nextStock = Math.max(0, nextStock - oldProd.quantity);
         }
+        
+        // Refund raw materials
         const used = oldProd.rawMaterials.find(rm => rm.productId === p.id);
         if (used) {
           nextStock += used.quantityUsed;
         }
+
         if (nextStock !== p.stock) {
           return { ...p, stock: nextStock, updatedAt: new Date().toISOString() };
         }
@@ -771,27 +778,22 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
     }
 
-    // 2. APPLY new production stock impact
-    if (updatedProd.status === 'Em andamento') {
-      // Deduct new raw materials
-      tempProducts = tempProducts.map(p => {
-        const used = updatedProd.rawMaterials.find(rm => rm.productId === p.id);
-        if (used) {
-          return { ...p, stock: Math.max(0, p.stock - used.quantityUsed), updatedAt: new Date().toISOString() };
-        }
-        return p;
-      });
-    } else if (updatedProd.status === 'Finalizado') {
-      // Deduct new raw materials AND add new finished product
+    // 2. APPLY new production stock impact (only if it is Finalizado)
+    if (updatedProd.status === 'Finalizado') {
       tempProducts = tempProducts.map(p => {
         let nextStock = p.stock;
+        
+        // Add finished product
         if (p.id === updatedProd.productId) {
           nextStock += updatedProd.quantity;
         }
+        
+        // Deduct raw materials
         const used = updatedProd.rawMaterials.find(rm => rm.productId === p.id);
         if (used) {
           nextStock = Math.max(0, nextStock - used.quantityUsed);
         }
+
         if (nextStock !== p.stock) {
           return { ...p, stock: nextStock, updatedAt: new Date().toISOString() };
         }
@@ -811,10 +813,37 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteProduction = (id: string) => {
+    const prodToDelete = productions.find(p => p.id === id);
+    if (prodToDelete && prodToDelete.status === 'Finalizado') {
+      const tempProducts = products.map(p => {
+        let nextStock = p.stock;
+        
+        // Subtract finished product
+        if (p.id === prodToDelete.productId) {
+          nextStock = Math.max(0, nextStock - prodToDelete.quantity);
+        }
+        
+        // Refund raw materials
+        const used = prodToDelete.rawMaterials.find(rm => rm.productId === p.id);
+        if (used) {
+          nextStock += used.quantityUsed;
+        }
+
+        if (nextStock !== p.stock) {
+          const next = { ...p, stock: nextStock, updatedAt: new Date().toISOString() };
+          setTimeout(() => checkLowStock(next), 100);
+          return next;
+        }
+        return p;
+      });
+      setProducts(tempProducts);
+      saveToStorage('matezza_products', tempProducts);
+    }
+
     const updated = productions.filter(p => p.id !== id);
     setProductions(updated);
     saveToStorage('matezza_productions', updated);
-    addAuditLog('Exclusão de Produção', `Ordem de produção ${id} removida`);
+    addAuditLog('Exclusão de Produção', `Ordem de produção ${id} removida e estoque estornado se aplicável`);
   };
 
   // Expense Operations
