@@ -17,7 +17,8 @@ import {
   ClipboardList,
   ShieldCheck,
   LogOut,
-  X
+  X,
+  UserCheck
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -44,6 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'expenses', label: 'Despesas', icon: DollarSign, role: ['Administrador'] },
     { id: 'production', label: 'Produção', icon: Factory, role: ['Administrador', 'Operador'] },
     { id: 'production_smart', label: 'Produção Inteligente', icon: Sparkles, role: ['Administrador', 'Operador'] },
+    { id: 'employees', label: 'Funcionários', icon: UserCheck, role: ['Administrador', 'Operador'] },
     { id: 'categories', label: 'Categorias', icon: Layers, role: ['Administrador', 'Operador'] },
     { id: 'products', label: 'Produtos', icon: ClipboardList, role: ['Administrador', 'Operador'] }
   ];

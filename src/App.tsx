@@ -16,15 +16,17 @@ import { ProductionLogView } from './components/ProductionLogView';
 import { ProductionView } from './components/ProductionView';
 import { CategoriesView } from './components/CategoriesView';
 import { ProductsView } from './components/ProductsView';
+import { EmployeesView } from './components/EmployeesView';
 import {
   Bell,
   Menu,
   ShieldCheck,
-  Check
+  Check,
+  X
 } from 'lucide-react';
 
 function ERPShell() {
-  const { currentUser, alerts, markAlertAsRead, clearAllAlerts } = useERP();
+  const { currentUser, alerts, markAlertAsRead, clearAllAlerts, toasts, removeToast } = useERP();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
@@ -44,6 +46,7 @@ function ERPShell() {
     if (activeTab === 'reports' && (!isAdmin && !isOperator)) return <DashboardView onNavigate={setActiveTab} />;
     if (activeTab === 'production' && (!isAdmin && !isOperator)) return <DashboardView onNavigate={setActiveTab} />;
     if (activeTab === 'production_smart' && (!isAdmin && !isOperator)) return <DashboardView onNavigate={setActiveTab} />;
+    if (activeTab === 'employees' && (!isAdmin && !isOperator)) return <DashboardView onNavigate={setActiveTab} />;
 
     switch (activeTab) {
       case 'dashboard':
@@ -60,6 +63,8 @@ function ERPShell() {
         return <ProductionLogView />;
       case 'production_smart':
         return <ProductionView />;
+      case 'employees':
+        return <EmployeesView />;
       case 'categories':
         return <CategoriesView />;
       case 'products':
@@ -195,6 +200,35 @@ function ERPShell() {
         <main id="erp-content-stage" className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
           {getPermittedView()}
         </main>
+      </div>
+
+      {/* Floating Toast Notifications */}
+      <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-2.5 max-w-sm w-[calc(100%-2.5rem)] pointer-events-none">
+        {toasts.map(toast => (
+          <div
+            key={toast.id}
+            className={`pointer-events-auto p-3.5 rounded-xl shadow-2xl border flex items-start justify-between gap-3 transition-all transform animate-fadeIn ${
+              toast.type === 'success'
+                ? 'bg-[#031c15]/95 border-emerald-500/40 text-emerald-300'
+                : toast.type === 'error'
+                  ? 'bg-[#1c0308]/95 border-rose-500/40 text-rose-300'
+                  : 'bg-[#081215]/95 border-sky-500/40 text-sky-300'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-sm">
+                {toast.type === 'success' ? '✅' : toast.type === 'error' ? '❌' : 'ℹ️'}
+              </span>
+              <p className="text-xs font-bold leading-normal">{toast.message}</p>
+            </div>
+            <button
+              onClick={() => removeToast(toast.id)}
+              className="shrink-0 p-1 bg-transparent hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-all cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );

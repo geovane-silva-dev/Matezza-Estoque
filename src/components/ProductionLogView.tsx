@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 export const ProductionLogView: React.FC = () => {
-  const { productions, updateProductionStatus, updateProduction, deleteProduction, products } = useERP();
+  const { productions, updateProductionStatus, updateProduction, deleteProduction, products, users } = useERP();
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
 
   // Edit form states
@@ -438,14 +438,17 @@ export const ProductionLogView: React.FC = () => {
                 {/* Responsible */}
                 <div>
                   <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Responsável Técnico</label>
-                  <input
-                    type="text"
+                  <select
                     value={editResponsible}
                     onChange={(e) => setEditResponsible(e.target.value)}
-                    placeholder="Nome do responsável"
-                    className="w-full bg-[#03100c] border border-[#0b2d25] rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-[#00df89]"
+                    className="w-full bg-[#03100c] border border-[#0b2d25] rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-[#00df89] cursor-pointer"
                     required
-                  />
+                  >
+                    <option value="">— Selecione o responsável —</option>
+                    {users.map(u => (
+                      <option key={u.id} value={u.name}>{u.name} ({u.role})</option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Live Recipe Consumption */}

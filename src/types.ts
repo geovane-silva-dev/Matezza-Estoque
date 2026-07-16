@@ -26,7 +26,7 @@ export interface Category {
 export interface Product {
   id: string;
   name: string;
-  image?: string;
+  image?: string; // used for custom emoji / icon selection
   price: number;
   cost: number;
   margin: number; // percentage
@@ -38,6 +38,8 @@ export interface Product {
   stock: number;
   minQuantity: number; // threshold for low stock alert
   isRawMaterial: boolean; // to differentiate components vs finished goods
+  unit?: string; // unit of measurement e.g. "Lata / Litro (L)"
+  productType?: 'final' | 'raw' | 'both'; // "final", "raw", or "both"
   createdAt: string;
   updatedAt: string;
 }
@@ -145,3 +147,10 @@ export interface AuditLog {
   details: string;
   createdAt: string;
 }
+
+export interface Toast {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
+

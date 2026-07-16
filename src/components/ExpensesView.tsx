@@ -16,7 +16,8 @@ import {
   CheckCircle,
   FileText,
   Search,
-  Filter
+  Filter,
+  Check
 } from 'lucide-react';
 
 export const ExpensesView: React.FC = () => {
@@ -24,7 +25,8 @@ export const ExpensesView: React.FC = () => {
     expenses,
     addExpense,
     updateExpense,
-    deleteExpense
+    deleteExpense,
+    showToast
   } = useERP();
 
   const [search, setSearch] = useState('');
@@ -209,9 +211,21 @@ export const ExpensesView: React.FC = () => {
                           Pago
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 bg-amber-950/40 text-amber-400 border border-amber-900/30 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                          Pendente
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 bg-amber-950/40 text-amber-400 border border-amber-900/30 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                            Pendente
+                          </span>
+                          <button
+                            onClick={() => {
+                              updateExpense(exp.id, { status: 'Pago' });
+                              showToast('Despesa liquidada e marcada como Paga!', 'success');
+                            }}
+                            className="p-1 bg-[#0a352a]/60 hover:bg-[#00df89]/25 text-[#00df89] hover:text-white rounded-lg border border-[#0d4738] transition-all cursor-pointer flex items-center justify-center"
+                            title="Marcar como Pago"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       )}
                     </td>
                     <td className="py-3.5 px-4 font-bold text-white font-mono">{formatCurrency(exp.amount)}</td>

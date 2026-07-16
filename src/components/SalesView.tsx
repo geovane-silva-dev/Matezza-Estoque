@@ -21,7 +21,8 @@ import {
   Printer,
   ChevronDown,
   X,
-  BadgeAlert
+  BadgeAlert,
+  Check
 } from 'lucide-react';
 
 interface CartItem {
@@ -36,7 +37,9 @@ export const SalesView: React.FC = () => {
     clients,
     addSale,
     deleteSale,
-    updateSaleStatus
+    clearSalesHistory,
+    updateSaleStatus,
+    showToast
   } = useERP();
 
   // Cart/PDV State
@@ -55,6 +58,8 @@ export const SalesView: React.FC = () => {
   // Receipt Modal State
   const [viewingSale, setViewingSale] = useState<Sale | null>(null);
   const [refundTarget, setRefundTarget] = useState<Sale | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Sale | null>(null);
+  const [showClearHistoryConfirm, setShowClearHistoryConfirm] = useState(false);
 
   // Filter products that are available for sale (non-raw material, has positive price)
   const sellableProducts = products.filter(p => !p.isRawMaterial);
@@ -62,14 +67,14 @@ export const SalesView: React.FC = () => {
   // PDV Actions
   const addToCart = (p: Product) => {
     if (p.stock <= 0) {
-      alert(`O produto "${p.name}" está temporariamente esgotado no estoque!`);
+      showToast(`O produto "${p.name}" está temporariamente esgotado no estoque!`, 'error');
       return;
     }
 
     const existing = cart.find(item => item.product.id === p.id);
     if (existing) {
       if (existing.quantity >= p.stock) {
-        alert(`Não é possível adicionar mais unidades. Limite de estoque físico atingido (${p.stock} un).`);
+        showToast(`Não é possível adicionar mais unidades. Limite de estoque físico atingido (${p.stock} un).`, 'error');
         return;
       }
       setCart(cart.map(item => item.product.id === p.id ? { ...item, quantity: item.quantity + 1 } : item));
@@ -89,7 +94,7 @@ export const SalesView: React.FC = () => {
     }
 
     if (newQty > item.product.stock) {
-      alert(`Limite de estoque físico atingido (${item.product.stock} un).`);
+      showToast(`Limite de estoque físico atingido (${item.product.stock} un).`, 'error');
       return;
     }
 
@@ -103,7 +108,7 @@ export const SalesView: React.FC = () => {
     const targetQty = Math.max(0, qty);
 
     if (targetQty > item.product.stock) {
-      alert(`Limite de estoque físico atingido (${item.product.stock} un).`);
+      showToast(`Limite de estoque físico atingido (${item.product.stock} un).`, 'error');
       setCart(cart.map(i => i.product.id === pId ? { ...i, quantity: item.product.stock } : i));
       return;
     }
@@ -122,13 +127,13 @@ export const SalesView: React.FC = () => {
   const handleCheckout = (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.length === 0) {
-      alert('Seu carrinho está vazio!');
+      showToast('Seu carrinho está vazio!', 'error');
       return;
     }
 
     const invalidItems = cart.filter(item => item.quantity <= 0);
     if (invalidItems.length > 0) {
-      alert('Existem itens no carrinho com quantidade inválida (menor ou igual a zero). Remova-os ou ajuste a quantidade antes de finalizar.');
+      showToast('Existem itens no carrinho com quantidade inválida (menor ou igual a zero). Remova-os ou ajuste a quantidade antes de finalizar.', 'error');
       return;
     }
 
@@ -173,7 +178,7 @@ export const SalesView: React.FC = () => {
     setPaymentMethod('PIX');
     setSaleStatus('Paga');
 
-    alert('Venda finalizada com sucesso! Recibo gerado.');
+    showToast('Venda finalizada com sucesso! Recibo gerado.', 'success');
   };
 
   // Filter history
@@ -491,6 +496,17 @@ export const SalesView: React.FC = () => {
               <option value="today">Hoje</option>
               <option value="30days">Últimos 30 Dias</option>
             </select>
+            {sales.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowClearHistoryConfirm(true)}
+                className="px-3 py-1.5 bg-red-950/40 hover:bg-red-900/30 text-red-400 border border-red-900/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+                title="Apagar todo o histórico de faturamento"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Limpar Histórico</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -534,27 +550,46 @@ export const SalesView: React.FC = () => {
                             Cancelada
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 bg-amber-950/40 text-amber-400 border border-amber-900/30 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                            Pendente
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 bg-amber-950/40 text-amber-400 border border-amber-900/30 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                              Pendente
+                            </span>
+                            <button
+                              onClick={() => {
+                                updateSaleStatus(sale.id, 'Paga');
+                                showToast('Venda faturada e liquidada com sucesso!', 'success');
+                              }}
+                              className="p-1 bg-[#0a352a]/60 hover:bg-[#00df89]/25 text-[#00df89] hover:text-white rounded-lg border border-[#0d4738] transition-all cursor-pointer flex items-center justify-center"
+                              title="Marcar como Pago"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         )}
                       </td>
                       <td className="py-3.5 px-4 font-bold text-white font-mono">{formatCurrency(sale.total)}</td>
-                      <td className="py-3.5 px-4 text-right space-x-1">
+                      <td className="py-3.5 px-4 text-right space-x-1.5">
                         <button
                           onClick={() => setViewingSale(sale)}
-                          className="px-2.5 py-1 bg-slate-900 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 text-slate-300 rounded-lg text-[10px] font-semibold transition-all"
+                          className="px-2.5 py-1 bg-slate-900 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 text-slate-300 rounded-lg text-[10px] font-semibold transition-all cursor-pointer inline-flex items-center"
                         >
                           Ver Recibo
                         </button>
                         {sale.status !== 'Cancelada' && (
                           <button
                             onClick={() => setRefundTarget(sale)}
-                            className="px-2.5 py-1 bg-slate-900 border border-slate-800 hover:border-red-900 hover:bg-red-950/10 text-slate-400 hover:text-red-400 rounded-lg text-[10px] font-semibold transition-all"
+                            className="px-2.5 py-1 bg-slate-900 border border-slate-800 hover:border-amber-900 hover:bg-amber-950/10 text-slate-400 hover:text-amber-400 rounded-lg text-[10px] font-semibold transition-all cursor-pointer inline-flex items-center"
                           >
                             Estornar
                           </button>
                         )}
+                        <button
+                          onClick={() => setDeleteTarget(sale)}
+                          className="p-1 bg-slate-900 border border-slate-800 hover:border-rose-900 hover:bg-rose-950/20 text-slate-400 hover:text-rose-400 rounded-lg transition-all inline-flex items-center justify-center cursor-pointer align-middle"
+                          title="Excluir Registro"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -704,6 +739,80 @@ export const SalesView: React.FC = () => {
                   className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
                 >
                   Confirmar Estorno
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM DELETE CONFIRMATION MODAL */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-slate-900 border border-rose-500/20 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl">
+            <div className="p-6 space-y-4">
+              <div className="text-center space-y-2">
+                <span className="text-rose-400 text-xs font-bold uppercase tracking-widest block">Excluir Registro</span>
+                <p className="text-sm font-bold text-white">Deletar venda "{deleteTarget.receiptId}"?</p>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Atenção: Deseja apagar este registro de venda permanentemente? Isso irá estornar o estoque correspondente de volta aos produtos.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget(null)}
+                  className="px-4 py-2 bg-slate-950 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold border border-slate-800 cursor-pointer transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    deleteSale(deleteTarget.id);
+                    setDeleteTarget(null);
+                    showToast('Registro de venda excluído!', 'info');
+                  }}
+                  className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Confirmar Exclusão
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM CLEAR ALL HISTORY CONFIRMATION MODAL */}
+      {showClearHistoryConfirm && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-slate-900 border border-red-500/25 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-scaleIn">
+            <div className="p-6 space-y-4">
+              <div className="text-center space-y-2">
+                <span className="text-rose-400 text-xs font-bold uppercase tracking-widest block font-sans">Limpar Histórico</span>
+                <p className="text-sm font-bold text-white">Limpar todo o faturamento?</p>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Atenção: Tem certeza de que deseja APAGAR TODO o histórico de faturamento de vendas? Esta ação é irreversível e apagará todos os registros salvos de vendas.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowClearHistoryConfirm(false)}
+                  className="px-4 py-2 bg-slate-950 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold border border-slate-800 cursor-pointer transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearSalesHistory();
+                    setShowClearHistoryConfirm(false);
+                    showToast('Histórico de faturamento de vendas limpo com sucesso!', 'info');
+                  }}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Confirmar Limpeza
                 </button>
               </div>
             </div>

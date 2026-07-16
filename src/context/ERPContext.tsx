@@ -16,7 +16,8 @@ import {
   Message,
   Settings,
   AuditLog,
-  UserRole
+  UserRole,
+  Toast
 } from '../types';
 
 interface ERPContextType {
@@ -38,6 +39,8 @@ interface ERPContextType {
   logout: () => void;
   registerUser: (name: string, email: string, role: UserRole) => void;
   updateUserRole: (userId: string, role: UserRole) => void;
+  updateUser: (userId: string, partial: Partial<User>) => void;
+  deleteUser: (userId: string) => void;
 
   // Category CRUD
   addCategory: (category: Omit<Category, 'id' | 'createdAt' | 'updatedAt'>) => void;
@@ -54,6 +57,7 @@ interface ERPContextType {
   addSale: (sale: Omit<Sale, 'id' | 'receiptId' | 'createdAt' | 'updatedAt'>) => void;
   updateSaleStatus: (id: string, status: Sale['status']) => void;
   deleteSale: (id: string) => void;
+  clearSalesHistory: () => void;
 
   // Production CRUD
   addProduction: (production: Omit<Production, 'id' | 'createdAt' | 'updatedAt'>) => void;
@@ -86,6 +90,11 @@ interface ERPContextType {
   exportDatabase: () => string;
   importDatabase: (jsonStr: string) => boolean;
   clearDatabase: () => void;
+
+  // Toasts
+  toasts: Toast[];
+  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  removeToast: (id: string) => void;
 }
 
 const ERPContext = createContext<ERPContextType | undefined>(undefined);
@@ -100,246 +109,21 @@ const initialUsers: User[] = [
   { id: 'U-FUNC', name: 'Geovane Silva', email: 'geovane.silvaa2010@gmail.com', role: 'Funcionário', createdAt: new Date().toISOString() }
 ];
 
-const initialCategories: Category[] = [
-  { id: 'CAT1', name: 'Matérias-Primas', icon: 'Layers', color: 'emerald', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'CAT2', name: 'Kits & Cuias', icon: 'Coffee', color: 'amber', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'CAT3', name: 'Garrafas Térmicas', icon: 'Flame', color: 'sky', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'CAT4', name: 'Acessórios Premium', icon: 'Sparkles', color: 'purple', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'CAT5', name: 'Embalagens', icon: 'Box', color: 'rose', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-];
+const initialCategories: Category[] = [];
 
-const initialProducts: Product[] = [
-  // Finished Goods
-  {
-    id: 'P-CUIA-PREM',
-    name: 'Cuia Térmica Inox Matezza Premium',
-    image: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&q=80&w=400',
-    price: 159.90,
-    cost: 45.00,
-    margin: 255.3,
-    supplier: 'Metalúrgica Sul Ltda',
-    category: 'Kits & Cuias',
-    barcode: '7891020304011',
-    weight: 0.35,
-    description: 'Cuia de parede dupla a vácuo em aço inoxidável 304, mantendo o chimarrão quente por até 45 minutos e frio por até 3 horas.',
-    stock: 42,
-    minQuantity: 15,
-    isRawMaterial: false,
-    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'P-TERM-1L',
-    name: 'Garrafa Térmica 1L Classic Inox',
-    image: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&q=80&w=400',
-    price: 249.90,
-    cost: 85.00,
-    margin: 194.0,
-    supplier: 'Importações Brasil-China',
-    category: 'Garrafas Térmicas',
-    barcode: '7891020304028',
-    weight: 0.85,
-    description: 'Garrafa térmica de alto desempenho, rolha de precisão de 360°, parede dupla com isolamento a vácuo.',
-    stock: 28,
-    minQuantity: 10,
-    isRawMaterial: false,
-    createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'P-BOMBA-INOX',
-    name: 'Bomba de Chimarrão Inox Desmontável',
-    image: 'https://images.unsplash.com/photo-1513530534585-c7b1394c6d51?auto=format&fit=crop&q=80&w=400',
-    price: 89.90,
-    cost: 22.00,
-    margin: 308.6,
-    supplier: 'Artigos Gaúchos Eireli',
-    category: 'Acessórios Premium',
-    barcode: '7891020304035',
-    weight: 0.08,
-    description: 'Bomba em aço inox cirúrgico com bojo removível para limpeza facilitada. Acompanha escova de higienização.',
-    stock: 65,
-    minQuantity: 20,
-    isRawMaterial: false,
-    createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  // Raw materials
-  {
-    id: 'P-RAW-STEEL',
-    name: 'Chapa de Aço Inox 304 (m²)',
-    image: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&q=80&w=400',
-    price: 0,
-    cost: 75.00,
-    margin: 0,
-    supplier: 'Gerdau S.A.',
-    category: 'Matérias-Primas',
-    barcode: 'RAW-ST-001',
-    weight: 7.80,
-    description: 'Chapa de aço inoxidável AISI 304, espessura 1.2mm, utilizada para moldagem do corpo das cuias e garrafas.',
-    stock: 120, // 120 m²
-    minQuantity: 30,
-    isRawMaterial: true,
-    createdAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'P-RAW-PAINT',
-    name: 'Pintura Eletrostática Epóxi (kg)',
-    image: 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&q=80&w=400',
-    price: 0,
-    cost: 32.00,
-    margin: 0,
-    supplier: 'WEG Tintas',
-    category: 'Matérias-Primas',
-    barcode: 'RAW-PT-002',
-    weight: 1.00,
-    description: 'Pó epóxi poliéster preto fosco texturizado para acabamento externo super resistente.',
-    stock: 45, // 45 kg
-    minQuantity: 10,
-    isRawMaterial: true,
-    createdAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'P-RAW-BOX',
-    name: 'Caixa de Papelão Premium Matezza',
-    image: 'https://images.unsplash.com/photo-1595079676339-1534801ad6cf?auto=format&fit=crop&q=80&w=400',
-    price: 0,
-    cost: 4.50,
-    margin: 0,
-    supplier: 'Klabin Embalagens',
-    category: 'Embalagens',
-    barcode: 'RAW-BX-003',
-    weight: 0.15,
-    description: 'Caixa de papelão microondulado com acabamento em hot-stamping dourado para embalagem individual.',
-    stock: 8, // Low stock on purpose to trigger alerts!
-    minQuantity: 25,
-    isRawMaterial: true,
-    createdAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-];
+const initialProducts: Product[] = [];
 
-const initialClients: Client[] = [
-  { id: 'C-MATE-SUL', name: 'Distribuidora Rio Grande S/A', cpfCnpj: '12.345.678/0001-99', email: 'comercial@riograndedist.com', phone: '(51) 3344-5566', balance: 0, status: 'Ativo', createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'C-MATE-SPA', name: 'Paraná Mate Emporium', cpfCnpj: '98.765.432/0002-11', email: 'contato@paranamate.com.br', phone: '(41) 99888-1122', balance: 450.00, status: 'Ativo', createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'C-GEO-SILVA', name: 'Geovane Silva', cpfCnpj: '025.145.986-22', email: 'geovane.silvaa2010@gmail.com', phone: '(51) 98112-2334', balance: 120.00, status: 'Ativo', createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), updatedAt: new Date().toISOString() }
-];
+const initialClients: Client[] = [];
 
-const initialSales: Sale[] = [
-  {
-    id: 'S-001',
-    clientId: 'C-MATE-SUL',
-    clientName: 'Distribuidora Rio Grande S/A',
-    products: [
-      { productId: 'P-CUIA-PREM', name: 'Cuia Térmica Inox Matezza Premium', quantity: 15, price: 159.90, cost: 45.00 },
-      { productId: 'P-TERM-1L', name: 'Garrafa Térmica 1L Classic Inox', quantity: 8, price: 249.90, cost: 85.00 }
-    ],
-    discount: 150.00,
-    tax: 85.40,
-    total: 4333.10, // (15*159.9 + 8*249.9) - 150 + 85.4
-    paymentMethod: 'PIX',
-    status: 'Paga',
-    receiptId: 'REC-2026-001',
-    createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'S-002',
-    clientId: 'C-GEO-SILVA',
-    clientName: 'Geovane Silva',
-    products: [
-      { productId: 'P-CUIA-PREM', name: 'Cuia Térmica Inox Matezza Premium', quantity: 1, price: 159.90, cost: 45.00 },
-      { productId: 'P-BOMBA-INOX', name: 'Bomba de Chimarrão Inox Desmontável', quantity: 1, price: 89.90, cost: 22.00 }
-    ],
-    discount: 0,
-    tax: 12.50,
-    total: 262.30,
-    paymentMethod: 'Cartão',
-    status: 'Paga',
-    receiptId: 'REC-2026-002',
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'S-003',
-    clientId: 'C-MATE-SPA',
-    clientName: 'Paraná Mate Emporium',
-    products: [
-      { productId: 'P-TERM-1L', name: 'Garrafa Térmica 1L Classic Inox', quantity: 5, price: 249.90, cost: 85.00 }
-    ],
-    discount: 50.00,
-    tax: 25.00,
-    total: 1224.50,
-    paymentMethod: 'Boleto',
-    status: 'Pendente',
-    receiptId: 'REC-2026-003',
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
-  }
-];
+const initialSales: Sale[] = [];
 
-const initialProductions: Production[] = [
-  {
-    id: 'PRD-001',
-    productId: 'P-CUIA-PREM',
-    productName: 'Cuia Térmica Inox Matezza Premium',
-    quantity: 50,
-    rawMaterials: [
-      { productId: 'P-RAW-STEEL', name: 'Chapa de Aço Inox 304 (m²)', quantityUsed: 12 },
-      { productId: 'P-RAW-PAINT', name: 'Pintura Eletrostática Epóxi (kg)', quantityUsed: 5 },
-      { productId: 'P-RAW-BOX', name: 'Caixa de Papelão Premium Matezza', quantityUsed: 50 }
-    ],
-    totalCost: 1285.00, // 12*75 + 5*32 + 50*4.5
-    estimatedProfit: 6710.00, // 50*159.90 - 1285.00
-    margin: 522.1,
-    durationMinutes: 180,
-    responsible: 'Operador Fabril',
-    status: 'Finalizado',
-    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'PRD-002',
-    productId: 'P-TERM-1L',
-    productName: 'Garrafa Térmica 1L Classic Inox',
-    quantity: 20,
-    rawMaterials: [
-      { productId: 'P-RAW-STEEL', name: 'Chapa de Aço Inox 304 (m²)', quantityUsed: 8 },
-      { productId: 'P-RAW-PAINT', name: 'Pintura Eletrostática Epóxi (kg)', quantityUsed: 3 },
-      { productId: 'P-RAW-BOX', name: 'Caixa de Papelão Premium Matezza', quantityUsed: 20 }
-    ],
-    totalCost: 786.00, // 8*75 + 3*32 + 20*4.5
-    estimatedProfit: 4212.00, // 20*249.90 - 786.00
-    margin: 535.8,
-    durationMinutes: 240,
-    responsible: 'Geovane Silva',
-    status: 'Em andamento',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-];
+const initialProductions: Production[] = [];
 
-const initialExpenses: Expense[] = [
-  { id: 'EXP-001', description: 'Folha de Pagamento - Junho', category: 'Funcionários', amount: 8500.00, date: '2026-06-30', status: 'Pago', createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'EXP-002', description: 'Fatura de Energia Elétrica Fabril', category: 'Energia', amount: 1450.20, date: '2026-07-05', status: 'Pago', createdAt: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'EXP-003', description: 'Aluguel do Galpão Industrial', category: 'Aluguel', amount: 3500.00, date: '2026-07-10', status: 'Pago', createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'EXP-004', description: 'Serviço de Link Dedicado Internet', category: 'Internet', amount: 380.00, date: '2026-07-12', status: 'Pago', createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'EXP-005', description: 'Abastecimento d\'Água Sabesp', category: 'Água', amount: 240.00, date: '2026-07-14', status: 'Pendente', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-];
+const initialExpenses: Expense[] = [];
 
-const initialMessages: Message[] = [
-  { id: 'MSG-001', title: 'Meta de Produção Batida! 🎉', content: 'Parabéns à equipe gaúcha! Alcançamos o marco de 500 cuias térmicas fabricadas este mês. Um bônus especial será distribuído na folha de pagamento.', priority: 'normal', pinned: true, createdBy: 'Administrador Matezza', createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString() },
-  { id: 'MSG-002', title: 'Manutenção Preventiva das Prensas', content: 'Atenção Operadores: Na sexta-feira às 14:00, a prensa hidráulica nº 3 passará por calibração. Favor planejar as ordens de serviço correspondentes.', priority: 'attention', pinned: false, createdBy: 'Administrador Matezza', createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() },
-  { id: 'MSG-003', title: 'Alerta de Baixo Estoque: Caixas Premium', content: 'Nosso estoque de "Caixas de Papelão Premium" atingiu nível crítico (8 unidades). O setor de compras já foi alertado, porém novas produções de kits de cuias devem aguardar a chegada do lote.', priority: 'urgent', pinned: true, createdBy: 'Administrador Matezza', createdAt: new Date().toISOString() }
-];
+const initialMessages: Message[] = [];
 
-const initialAlerts: Alert[] = [
-  { id: 'AL-1', type: 'stock', message: 'Produto "Caixa de Papelão Premium Matezza" está abaixo do limite mínimo (Estoque: 8 / Mín: 25).', severity: 'urgent', read: false, createdAt: new Date().toISOString() },
-  { id: 'AL-2', type: 'production', message: 'Produção PRD-002 (Garrafa Térmica 1L) está pendente para finalização do lote.', severity: 'normal', read: false, createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString() },
-  { id: 'AL-3', type: 'expense', message: 'Despesa de Aluguel do Galpão no valor de R$ 3.500,00 foi processada.', severity: 'normal', read: true, createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString() }
-];
+const initialAlerts: Alert[] = [];
 
 export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -359,10 +143,45 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     companyLogo: ''
   });
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [toasts, setToasts] = useState<Toast[]>([]);
 
   // Load from LocalStorage
   useEffect(() => {
     try {
+      const ultraClean = localStorage.getItem('matezza_ultra_clean_slate_v2');
+      if (!ultraClean) {
+        localStorage.clear();
+        localStorage.setItem('matezza_ultra_clean_slate_v2', 'true');
+        setUsers(initialUsers);
+        setCategories([]);
+        setProducts([]);
+        setSales([]);
+        setProductions([]);
+        setExpenses([]);
+        setClients([]);
+        setAlerts([]);
+        setMessages([]);
+        setSettings({
+          darkMode: true,
+          language: 'pt',
+          companyName: 'MATEZZA INDUSTRIAL LTDA',
+          companyLogo: ''
+        });
+        localStorage.setItem('matezza_users', JSON.stringify(initialUsers));
+        localStorage.setItem('matezza_categories', '[]');
+        localStorage.setItem('matezza_products', '[]');
+        localStorage.setItem('matezza_sales', '[]');
+        localStorage.setItem('matezza_productions', '[]');
+        localStorage.setItem('matezza_recipes', '[]');
+        localStorage.setItem('matezza_expenses', '[]');
+        localStorage.setItem('matezza_clients', '[]');
+        localStorage.setItem('matezza_alerts', '[]');
+        localStorage.setItem('matezza_messages', '[]');
+        localStorage.setItem('matezza_session', JSON.stringify(initialUsers[0]));
+        setCurrentUser(initialUsers[0]);
+        return;
+      }
+
       const storedUsers = localStorage.getItem('matezza_users');
       const storedCategories = localStorage.getItem('matezza_categories');
       const storedProducts = localStorage.getItem('matezza_products');
@@ -388,7 +207,23 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.setItem('matezza_categories', JSON.stringify(initialCategories));
       }
 
-      if (storedProducts) setProducts(JSON.parse(storedProducts));
+      if (storedProducts) {
+        const parsedProducts: Product[] = JSON.parse(storedProducts);
+        const cleansedProducts = parsedProducts.map(p => {
+          if (p.image && p.image.startsWith('http')) {
+            if (p.id === 'P-CUIA-PREM' || p.name.includes('Cuia')) return { ...p, image: '🧉' };
+            if (p.id === 'P-TERM-1L' || p.name.includes('Garrafa')) return { ...p, image: '💧' };
+            if (p.id === 'P-BOMBA-INOX' || p.name.includes('Bomba')) return { ...p, image: '🌿' };
+            if (p.id === 'P-RAW-STEEL' || p.name.includes('Aço')) return { ...p, image: '🛡️' };
+            if (p.id === 'P-RAW-PAINT' || p.name.includes('Pintura')) return { ...p, image: '🍂' };
+            if (p.id === 'P-RAW-BOX' || p.name.includes('Caixa')) return { ...p, image: '📦' };
+            return { ...p, image: '📦' };
+          }
+          return p;
+        });
+        setProducts(cleansedProducts);
+        localStorage.setItem('matezza_products', JSON.stringify(cleansedProducts));
+      }
       else {
         setProducts(initialProducts);
         localStorage.setItem('matezza_products', JSON.stringify(initialProducts));
@@ -400,7 +235,17 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.setItem('matezza_sales', JSON.stringify(initialSales));
       }
 
-      if (storedProductions) setProductions(JSON.parse(storedProductions));
+      const clearedProd = localStorage.getItem('matezza_production_cleared_v2');
+      if (!clearedProd) {
+        localStorage.setItem('matezza_recipes', '[]');
+        localStorage.setItem('matezza_productions', '[]');
+        localStorage.setItem('matezza_production_cleared_v2', 'true');
+        setProductions([]);
+      } else if (storedProductions) {
+        const parsed = JSON.parse(storedProductions);
+        const filtered = parsed.filter((p: any) => p.id !== 'PRD-001' && p.id !== 'PRD-002');
+        setProductions(filtered);
+      }
       else {
         setProductions(initialProductions);
         localStorage.setItem('matezza_productions', JSON.stringify(initialProductions));
@@ -472,6 +317,18 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     saveToStorage('matezza_audit_logs', updated);
   };
 
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = generateId();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
   // Auth Operations
   const login = (email: string, role: UserRole): boolean => {
     const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
@@ -525,6 +382,20 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUsers(updated);
     saveToStorage('matezza_users', updated);
     addAuditLog('Alteração de Permissão', `Usuário ${userId} alterado para ${role}`);
+  };
+
+  const updateUser = (userId: string, partial: Partial<User>) => {
+    const updated = users.map(u => u.id === userId ? { ...u, ...partial } : u);
+    setUsers(updated);
+    saveToStorage('matezza_users', updated);
+    addAuditLog('Edição de Usuário', `Usuário ${userId} atualizado`);
+  };
+
+  const deleteUser = (userId: string) => {
+    const updated = users.filter(u => u.id !== userId);
+    setUsers(updated);
+    saveToStorage('matezza_users', updated);
+    addAuditLog('Exclusão de Usuário', `Usuário ${userId} deletado`);
   };
 
   // Category Operations
@@ -683,6 +554,37 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateSaleStatus = (id: string, status: Sale['status']) => {
+    const saleToUpdate = sales.find(s => s.id === id);
+    if (saleToUpdate && saleToUpdate.clientId) {
+      if (saleToUpdate.status === 'Pendente' && status === 'Paga') {
+        const updatedClients = clients.map(c => {
+          if (c.id === saleToUpdate.clientId) {
+            return {
+              ...c,
+              balance: Math.max(0, c.balance - saleToUpdate.total),
+              updatedAt: new Date().toISOString()
+            };
+          }
+          return c;
+        });
+        setClients(updatedClients);
+        saveToStorage('matezza_clients', updatedClients);
+      } else if (saleToUpdate.status === 'Paga' && status === 'Pendente') {
+        const updatedClients = clients.map(c => {
+          if (c.id === saleToUpdate.clientId) {
+            return {
+              ...c,
+              balance: c.balance + saleToUpdate.total,
+              updatedAt: new Date().toISOString()
+            };
+          }
+          return c;
+        });
+        setClients(updatedClients);
+        saveToStorage('matezza_clients', updatedClients);
+      }
+    }
+
     const updated = sales.map(s => s.id === id ? { ...s, status, updatedAt: new Date().toISOString() } : s);
     setSales(updated);
     saveToStorage('matezza_sales', updated);
@@ -702,12 +604,34 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       setProducts(updatedProducts);
       saveToStorage('matezza_products', updatedProducts);
+
+      // Refund client balance if sale was pendente
+      if (saleToRefund.clientId && saleToRefund.status === 'Pendente') {
+        const updatedClients = clients.map(c => {
+          if (c.id === saleToRefund.clientId) {
+            return {
+              ...c,
+              balance: Math.max(0, c.balance - saleToRefund.total),
+              updatedAt: new Date().toISOString()
+            };
+          }
+          return c;
+        });
+        setClients(updatedClients);
+        saveToStorage('matezza_clients', updatedClients);
+      }
     }
 
     const updated = sales.filter(s => s.id !== id);
     setSales(updated);
     saveToStorage('matezza_sales', updated);
     addAuditLog('Exclusão de Venda', `Venda ${id} excluída e estoque estornado`);
+  };
+
+  const clearSalesHistory = () => {
+    setSales([]);
+    saveToStorage('matezza_sales', []);
+    addAuditLog('Limpeza de Histórico de Vendas', `Todo o histórico de vendas foi apagado`);
   };
 
   // Production Operations
@@ -1127,6 +1051,8 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       logout,
       registerUser,
       updateUserRole,
+      updateUser,
+      deleteUser,
 
       addCategory,
       updateCategory,
@@ -1140,6 +1066,7 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addSale,
       updateSaleStatus,
       deleteSale,
+      clearSalesHistory,
 
       addProduction,
       updateProductionStatus,
@@ -1165,7 +1092,11 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateSettings,
       exportDatabase,
       importDatabase,
-      clearDatabase
+      clearDatabase,
+
+      toasts,
+      showToast,
+      removeToast
     }}>
       {children}
     </ERPContext.Provider>
