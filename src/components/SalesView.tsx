@@ -238,7 +238,7 @@ export const SalesView: React.FC = () => {
     doc.text("MATEZZA INDUSTRIAL LTDA", 20, 30);
     
     doc.setFont("helvetica", "normal");
-    doc.text("CNPJ: 63.988.590/0001-22 | Tel: (42) 99932-7407", 20, 34);
+    doc.text("CNPJ: 63.988.590/0001-22 | Tel: (42) 8807-9911", 20, 34);
     doc.text("São Mateus do Sul, PR", 20, 38);
 
     // Right header side: Receipt ID & Date
@@ -832,7 +832,7 @@ export const SalesView: React.FC = () => {
                     <span className="text-xl font-black tracking-widest text-slate-950 font-sans">MATEZZA</span>
                   </div>
                   <span className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">MATEZZA INDUSTRIAL LTDA</span>
-                  <p className="text-[10px] text-slate-500 mt-1 max-w-[200px]">CNPJ: 63.988.590/0001-22 | Tel: (42) 99932-7407 | São Mateus do Sul, PR</p>
+                  <p className="text-[10px] text-slate-500 mt-1 max-w-[200px]">CNPJ: 63.988.590/0001-22 | Tel: (42) 8807-9911 | São Mateus do Sul, PR</p>
                 </div>
                 <div className="text-right">
                   <span className="text-xs bg-slate-950 text-white font-bold px-2.5 py-0.5 rounded uppercase tracking-wider">Recibo de Venda</span>

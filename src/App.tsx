@@ -140,45 +140,81 @@ function ERPShell() {
                   />
                   <div
                     id="alerts-dropdown-panel"
-                    className="absolute right-0 mt-2.5 w-80 bg-[#041611] border border-[#0b3a2d] rounded-2xl shadow-2xl z-50 p-4 space-y-3"
+                    className="absolute right-0 mt-2.5 w-[22rem] bg-[#041611] border border-[#0b3a2d] rounded-2xl shadow-2xl z-50 p-4 space-y-3"
                   >
-                    <div className="flex items-center justify-between border-b border-[#0b3328]/40 pb-2">
-                      <span className="text-xs font-bold text-white uppercase tracking-wider">Centro de Notificações</span>
+                    <div className="flex items-center justify-between border-b border-[#0b3328]/40 pb-2.5">
+                      <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                        <Bell className="w-3.5 h-3.5 text-[#00df89]" />
+                        Centro de Notificações
+                      </span>
                       {unreadAlerts.length > 0 && (
                         <button
                           onClick={clearAllAlerts}
-                          className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold"
+                          className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold transition-all cursor-pointer"
                         >
-                          Limpar todos
+                          Marcar todas como lidas
                         </button>
                       )}
                     </div>
 
-                    <div className="space-y-2 max-h-[220px] overflow-y-auto custom-scrollbar">
+                    <div className="space-y-2 max-h-[260px] overflow-y-auto custom-scrollbar">
                       {alerts.length === 0 ? (
-                        <div className="text-center py-6 text-slate-500 text-xs">
+                        <div className="text-center py-8 text-slate-500 text-xs">
                           Nenhuma notificação ativa.
                         </div>
                       ) : (
-                        alerts.map((al) => (
-                          <div
-                            key={al.id}
-                            onClick={() => markAlertAsRead(al.id)}
-                            className={`p-2.5 rounded-xl text-xs flex gap-2 cursor-pointer transition-all border ${
-                              al.read 
-                                ? 'bg-slate-950/20 border-slate-800/40 text-slate-500' 
-                                : al.severity === 'urgent'
-                                  ? 'bg-rose-500/5 border-rose-500/20 text-slate-200 font-semibold'
-                                  : 'bg-amber-500/5 border-amber-500/20 text-slate-200 font-semibold'
-                            }`}
-                          >
-                            <span className="shrink-0">{al.read ? '✅' : '🔔'}</span>
-                            <div className="flex-1">
-                              <p className="leading-tight text-[11px]">{al.message}</p>
-                              <span className="text-[8px] text-slate-500 mt-0.5 block">{new Date(al.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        alerts.map((al) => {
+                          const alertDate = new Date(al.createdAt);
+                          const formattedDate = alertDate.toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                          });
+                          const formattedTime = alertDate.toLocaleTimeString('pt-BR', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          });
+
+                          return (
+                            <div
+                              key={al.id}
+                              onClick={() => !al.read && markAlertAsRead(al.id)}
+                              className={`p-3 rounded-xl text-xs flex gap-2.5 transition-all border ${
+                                al.read 
+                                  ? 'bg-slate-950/20 border-slate-800/20 text-slate-500' 
+                                  : al.severity === 'urgent'
+                                    ? 'bg-rose-500/5 border-rose-500/20 text-slate-200'
+                                    : 'bg-amber-500/5 border-amber-500/20 text-slate-200'
+                              }`}
+                            >
+                              <span className="shrink-0 mt-0.5 text-xs">{al.read ? '✅' : '🔔'}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className={`leading-snug text-[11px] break-words ${!al.read ? 'font-medium' : ''}`}>{al.message}</p>
+                                <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/30">
+                                  <span className="text-[9px] text-slate-500">
+                                    {formattedDate} às {formattedTime}
+                                  </span>
+                                  {!al.read ? (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        markAlertAsRead(al.id);
+                                      }}
+                                      className="px-2 py-0.5 bg-emerald-950/80 border border-emerald-800/60 hover:bg-emerald-900 text-emerald-400 hover:text-emerald-200 text-[9px] font-bold rounded-md transition-all uppercase tracking-wider flex items-center gap-0.5 cursor-pointer"
+                                    >
+                                      <Check className="w-2.5 h-2.5" />
+                                      Lida
+                                    </button>
+                                  ) : (
+                                    <span className="text-[9px] text-emerald-500/60 font-semibold flex items-center gap-0.5">
+                                      Lida
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        ))
+                          );
+                        })
                       )}
                     </div>
                   </div>
