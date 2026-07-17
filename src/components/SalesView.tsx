@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { useERP } from '../context/ERPContext';
 import { Sale, Product, Client, getProductUnitSuffix } from '../types';
+import { jsPDF } from 'jspdf';
 import {
   ShoppingCart,
   Search,
@@ -22,7 +23,8 @@ import {
   ChevronDown,
   X,
   BadgeAlert,
-  Check
+  Check,
+  Download
 } from 'lucide-react';
 
 interface CartItem {
@@ -205,6 +207,195 @@ export const SalesView: React.FC = () => {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPDF = () => {
+    if (!viewingSale) return;
+
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    // Color definitions
+    const primaryColor = [15, 23, 42]; // Slate 900
+    const secondaryColor = [100, 116, 139]; // Slate 500
+    const lightBg = [248, 250, 252]; // Slate 50
+    const borderLineColor = [226, 232, 240]; // Slate 200
+
+    // Set font style
+    doc.setFont("helvetica", "bold");
+    
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text("MATEZZA", 20, 25);
+    
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.text("MATEZZA INDUSTRIAL LTDA", 20, 30);
+    
+    doc.setFont("helvetica", "normal");
+    doc.text("CNPJ: 63.988.590/0001-22 | Tel: (42) 99932-7407", 20, 34);
+    doc.text("São Mateus do Sul, PR", 20, 38);
+
+    // Right header side: Receipt ID & Date
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.rect(140, 18, 50, 8, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.text("RECIBO DE VENDA", 144, 23.5);
+
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.setFontSize(11);
+    doc.text(viewingSale.receiptId, 144, 31);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    const saleDate = new Date(viewingSale.createdAt);
+    doc.text(`${saleDate.toLocaleDateString()} às ${saleDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, 144, 36);
+
+    // Divider
+    doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.setLineWidth(0.5);
+    doc.line(20, 44, 190, 44);
+
+    // Client Info Box
+    doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+    doc.rect(20, 49, 170, 18, "F");
+    doc.setDrawColor(borderLineColor[0], borderLineColor[1], borderLineColor[2]);
+    doc.setLineWidth(0.2);
+    doc.rect(20, 49, 170, 18, "S");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.text("DADOS DO CLIENTE", 24, 54);
+
+    doc.setFontSize(10);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text(viewingSale.clientName, 24, 59);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(`Status da Transação: ${viewingSale.status === 'Paga' ? 'CONFIRMADA / FATURADA' : 'PENDENTE DE PAGAMENTO'}`, 24, 63);
+
+    // Products table header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.text("DISCRIMINAÇÃO DOS PRODUTOS", 20, 75);
+
+    // Table Header Line
+    doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.setLineWidth(0.4);
+    doc.line(20, 78, 190, 78);
+
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text("Item", 22, 82);
+    doc.text("Qtd", 110, 82);
+    doc.text("P. Unit", 140, 82);
+    doc.text("Subtotal", 170, 82);
+
+    doc.line(20, 84, 190, 84);
+
+    // Table Rows
+    doc.setFont("helvetica", "normal");
+    let currentY = 89;
+    viewingSale.products.forEach((item) => {
+      doc.text(item.name, 22, currentY);
+      doc.text(String(item.quantity), 110, currentY);
+      doc.text(formatCurrency(item.price), 140, currentY);
+      doc.setFont("helvetica", "bold");
+      doc.text(formatCurrency(item.price * item.quantity), 170, currentY);
+      doc.setFont("helvetica", "normal");
+      
+      // row line
+      doc.setDrawColor(borderLineColor[0], borderLineColor[1], borderLineColor[2]);
+      doc.setLineWidth(0.15);
+      doc.line(20, currentY + 2, 190, currentY + 2);
+      
+      currentY += 7;
+    });
+
+    // Totals calculations
+    currentY += 3;
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.text("Descontos aplicados:", 120, currentY);
+    doc.text(`-${formatCurrency(viewingSale.discount)}`, 170, currentY);
+
+    currentY += 5;
+    doc.text("Taxas / Adicionais:", 120, currentY);
+    doc.text(`+${formatCurrency(viewingSale.tax)}`, 170, currentY);
+
+    currentY += 6;
+    // total divider line
+    doc.setDrawColor(borderLineColor[0], borderLineColor[1], borderLineColor[2]);
+    doc.setLineWidth(0.3);
+    doc.line(120, currentY - 3, 190, currentY - 3);
+
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text("Total Líquido:", 120, currentY);
+    doc.setFontSize(10);
+    doc.text(formatCurrency(viewingSale.total), 170, currentY);
+
+    doc.setFontSize(8);
+    currentY += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.text("Método Liquidação:", 120, currentY);
+    doc.text(viewingSale.paymentMethod, 170, currentY);
+
+    // Signatures Area
+    currentY = Math.max(currentY + 25, 185); // ensure it sits at a clean vertical position
+    
+    doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.setLineWidth(0.25);
+    
+    // Line 1: Vendedor
+    doc.line(25, currentY, 95, currentY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text("Assinatura do Vendedor", 42, currentY + 4);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.text("Representante Matezza", 44, currentY + 7);
+
+    // Line 2: Cliente
+    doc.line(115, currentY, 185, currentY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text("Assinatura do Cliente", 133, currentY + 4);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.text("Recebedor Autorizado", 135, currentY + 7);
+
+    // Footer
+    currentY += 22;
+    doc.setDrawColor(borderLineColor[0], borderLineColor[1], borderLineColor[2]);
+    doc.setLineWidth(0.2);
+    doc.line(20, currentY, 190, currentY);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.text("Obrigado pela preferência! MATEZZA ERP Corporativo.", 65, currentY + 5);
+    doc.setFontSize(6.5);
+    doc.text("Comprovante de faturamento eletrônico gerado de forma segura.", 68, currentY + 8);
+
+    // Save
+    doc.save(`recibo-${viewingSale.receiptId}.pdf`);
   };
 
   return (
@@ -606,17 +797,25 @@ export const SalesView: React.FC = () => {
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl relative">
             
             {/* Action buttons (fixed outside print area) */}
-            <div className="absolute right-4 top-4 flex items-center gap-2 z-10">
+            <div className="absolute right-4 top-4 flex items-center gap-2 z-10 print:hidden">
+              <button
+                onClick={handleDownloadPDF}
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-950/80 border border-emerald-800/60 hover:bg-emerald-900 text-emerald-400 hover:text-emerald-200 rounded-xl transition-all cursor-pointer text-xs font-bold"
+                title="Baixar PDF"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>PDF</span>
+              </button>
               <button
                 onClick={handlePrint}
-                className="p-1.5 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-emerald-400 rounded-lg transition-colors cursor-pointer"
+                className="p-1.5 bg-slate-950 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-emerald-400 rounded-xl transition-colors cursor-pointer"
                 title="Imprimir"
               >
                 <Printer className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewingSale(null)}
-                className="p-1.5 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                className="p-1.5 bg-slate-950 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-colors cursor-pointer"
                 title="Fechar"
               >
                 <X className="w-4 h-4" />
@@ -633,7 +832,7 @@ export const SalesView: React.FC = () => {
                     <span className="text-xl font-black tracking-widest text-slate-950 font-sans">MATEZZA</span>
                   </div>
                   <span className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">MATEZZA INDUSTRIAL LTDA</span>
-                  <p className="text-[10px] text-slate-500 mt-1 max-w-[200px]">CNPJ: 10.222.333/0001-99 | Tel: (51) 3222-1111 | Bento Gonçalves, RS</p>
+                  <p className="text-[10px] text-slate-500 mt-1 max-w-[200px]">CNPJ: 63.988.590/0001-22 | Tel: (42) 99932-7407 | São Mateus do Sul, PR</p>
                 </div>
                 <div className="text-right">
                   <span className="text-xs bg-slate-950 text-white font-bold px-2.5 py-0.5 rounded uppercase tracking-wider">Recibo de Venda</span>
@@ -697,6 +896,20 @@ export const SalesView: React.FC = () => {
                     <span>Método Liquidação:</span>
                     <span className="uppercase">{viewingSale.paymentMethod}</span>
                   </div>
+                </div>
+              </div>
+
+              {/* Signatures Area */}
+              <div className="grid grid-cols-2 gap-6 pt-8 pb-4 border-t border-slate-100">
+                <div className="text-center space-y-1">
+                  <div className="border-b border-slate-300 w-full h-8"></div>
+                  <span className="text-[9px] font-bold text-slate-700 block uppercase tracking-wider">Assinatura do Vendedor</span>
+                  <span className="text-[8px] text-slate-400 block">Representante Matezza</span>
+                </div>
+                <div className="text-center space-y-1">
+                  <div className="border-b border-slate-300 w-full h-8"></div>
+                  <span className="text-[9px] font-bold text-slate-700 block uppercase tracking-wider">Assinatura do Cliente</span>
+                  <span className="text-[8px] text-slate-400 block">Recebedor Autorizado</span>
                 </div>
               </div>
 
