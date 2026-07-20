@@ -52,6 +52,12 @@ export interface SaleProduct {
   cost: number;
 }
 
+export interface DiscountEntry {
+  id: string;
+  amount: number;
+  description: string;
+}
+
 export interface Sale {
   id: string;
   clientId: string;
@@ -67,6 +73,8 @@ export interface Sale {
   updatedAt: string;
   description?: string;
   paymentTerm?: string;
+  discountDescription?: string;
+  discounts?: DiscountEntry[];
 }
 
 export interface ProductionRawMaterial {

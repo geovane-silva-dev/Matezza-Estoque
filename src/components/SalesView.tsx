@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { useERP } from '../context/ERPContext';
-import { Sale, Product, Client, getProductUnitSuffix } from '../types';
+import { Sale, Product, Client, getProductUnitSuffix, DiscountEntry } from '../types';
 import { jsPDF } from 'jspdf';
 import {
   ShoppingCart,
@@ -48,12 +48,18 @@ export const SalesView: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
   const [customClientName, setCustomClientName] = useState('');
-  const [discount, setDiscount] = useState(0);
+  const [discountsList, setDiscountsList] = useState<DiscountEntry[]>([]);
+  const [newDiscountAmount, setNewDiscountAmount] = useState<number | ''>('');
+  const [newDiscountDesc, setNewDiscountDesc] = useState('');
   const [tax, setTax] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'Dinheiro' | 'Cartão' | 'Boleto'>('PIX');
   const [saleStatus, setSaleStatus] = useState<'Paga' | 'Pendente'>('Paga');
   const [description, setDescription] = useState('');
   const [paymentTerm, setPaymentTerm] = useState('');
+
+  // Computed values
+  const discount = discountsList.reduce((sum, d) => sum + d.amount, 0);
+  const discountDescription = discountsList.map(d => `${d.description} (R$ ${d.amount.toFixed(2)})`).join(' | ');
 
   // Sales History filter states
   const [historySearch, setHistorySearch] = useState('');
@@ -124,6 +130,32 @@ export const SalesView: React.FC = () => {
     setCart(cart.filter(i => i.product.id !== pId));
   };
 
+  const handleAddDiscount = () => {
+    if (!newDiscountDesc.trim()) {
+      showToast('Por favor, informe a justificativa/descrição do desconto!', 'error');
+      return;
+    }
+    const amt = Number(newDiscountAmount);
+    if (isNaN(amt) || amt <= 0) {
+      showToast('Por favor, informe um valor de desconto válido!', 'error');
+      return;
+    }
+    const newEntry: DiscountEntry = {
+      id: 'D-' + Math.random().toString(36).substring(2, 9),
+      amount: amt,
+      description: newDiscountDesc.trim()
+    };
+    setDiscountsList([...discountsList, newEntry]);
+    setNewDiscountAmount('');
+    setNewDiscountDesc('');
+    showToast('Desconto adicionado com sucesso!', 'success');
+  };
+
+  const handleRemoveDiscount = (id: string) => {
+    setDiscountsList(discountsList.filter(d => d.id !== id));
+    showToast('Desconto removido.', 'info');
+  };
+
   // Calculations
   const cartSubtotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
   const cartTotal = Math.max(0, cartSubtotal - discount + tax);
@@ -172,14 +204,18 @@ export const SalesView: React.FC = () => {
       paymentMethod,
       status: saleStatus,
       description: description || undefined,
-      paymentTerm: saleStatus === 'Pendente' ? (paymentTerm || undefined) : undefined
+      paymentTerm: saleStatus === 'Pendente' ? (paymentTerm || undefined) : undefined,
+      discountDescription: discount > 0 ? (discountDescription || undefined) : undefined,
+      discounts: discountsList.length > 0 ? discountsList : undefined
     });
 
     // Clear Cart
     setCart([]);
     setSelectedClientId('');
     setCustomClientName('');
-    setDiscount(0);
+    setDiscountsList([]);
+    setNewDiscountAmount('');
+    setNewDiscountDesc('');
     setTax(0);
     setPaymentMethod('PIX');
     setSaleStatus('Paga');
@@ -382,6 +418,40 @@ export const SalesView: React.FC = () => {
       doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
       
       const splitText = doc.splitTextToSize(viewingSale.description, 170);
+      doc.text(splitText, 20, currentY);
+      
+      currentY += (splitText.length * 4.5);
+    }
+
+    if (viewingSale.discounts && viewingSale.discounts.length > 0) {
+      currentY += 10;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      doc.text("DISCRIMINAÇÃO DE DESCONTOS", 20, currentY);
+
+      viewingSale.discounts.forEach((d) => {
+        currentY += 4.5;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(185, 28, 28);
+        doc.text(`${d.description}:`, 20, currentY);
+        doc.text(`-${formatCurrency(d.amount)}`, 170, currentY);
+      });
+      currentY += 2;
+    } else if (viewingSale.discountDescription) {
+      currentY += 10;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      doc.text("JUSTIFICATIVA DO DESCONTO", 20, currentY);
+
+      currentY += 4;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(185, 28, 28);
+      
+      const splitText = doc.splitTextToSize(viewingSale.discountDescription, 170);
       doc.text(splitText, 20, currentY);
       
       currentY += (splitText.length * 4.5);
@@ -677,17 +747,9 @@ export const SalesView: React.FC = () => {
                 />
               </div>
 
-              {/* Discount and tax */}
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Desconto (R$)</label>
-                  <input
-                    type="number"
-                    value={discount}
-                    onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white focus:outline-none font-mono"
-                  />
-                </div>
+              {/* Discounts and tax */}
+              <div className="space-y-4 pt-2 border-t border-slate-800/60">
+                {/* Tax Input */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Encargos/Frete (R$)</label>
                   <input
@@ -696,6 +758,82 @@ export const SalesView: React.FC = () => {
                     onChange={(e) => setTax(Math.max(0, Number(e.target.value)))}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white focus:outline-none font-mono"
                   />
+                </div>
+
+                {/* Multi-Discount Manager */}
+                <div className="bg-slate-950/40 border border-slate-800/80 p-3 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-800/60 pb-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Descontos da Venda</span>
+                    {discount > 0 && (
+                      <span className="text-[10px] font-bold text-emerald-400 font-mono">
+                        Total: -{formatCurrency(discount)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* List of current discounts */}
+                  {discountsList.length > 0 ? (
+                    <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1">
+                      {discountsList.map((d) => (
+                        <div
+                          key={d.id}
+                          className="flex items-center justify-between bg-slate-950/80 border border-slate-800 p-2 rounded-xl text-xs"
+                        >
+                          <div className="flex-1 min-w-0 pr-2">
+                            <p className="text-white font-semibold truncate">{d.description}</p>
+                            <span className="text-[10px] text-slate-500">Valor Unitário</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-red-400 font-bold">-{formatCurrency(d.amount)}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDiscount(d.id)}
+                              className="text-slate-500 hover:text-red-400 p-1 rounded-lg transition-colors"
+                              title="Remover desconto"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-500 text-center italic py-2">
+                      Nenhum desconto adicionado a esta venda.
+                    </p>
+                  )}
+
+                  {/* Form to add a new discount */}
+                  <div className="border-t border-slate-800/60 pt-2.5 space-y-2">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase block">Adicionar Novo Desconto</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="col-span-2">
+                        <input
+                          type="text"
+                          value={newDiscountDesc}
+                          onChange={(e) => setNewDiscountDesc(e.target.value)}
+                          placeholder="Justificativa (ex: Fidelidade)"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl py-1.5 px-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500/40"
+                        />
+                      </div>
+                      <div className="col-span-1">
+                        <input
+                          type="number"
+                          value={newDiscountAmount}
+                          onChange={(e) => setNewDiscountAmount(e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))}
+                          placeholder="R$"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl py-1.5 px-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500/40 font-mono"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddDiscount}
+                      className="w-full py-1.5 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold uppercase rounded-xl transition-all flex items-center justify-center gap-1"
+                    >
+                      <Plus size={12} /> Adicionar Desconto
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -990,6 +1128,28 @@ export const SalesView: React.FC = () => {
                   </p>
                 </div>
               )}
+
+              {/* Discount Description */}
+              {(viewingSale.discounts && viewingSale.discounts.length > 0) ? (
+                <div className="border-t border-slate-200 pt-4 pb-1 text-left space-y-2">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block text-red-500">Discriminação de Descontos</span>
+                  <div className="space-y-1.5">
+                    {viewingSale.discounts.map((d) => (
+                      <div key={d.id} className="flex justify-between items-center bg-red-50/50 p-2 rounded-xl border border-red-100/60 text-xs">
+                        <span className="text-slate-700 italic">{d.description}</span>
+                        <span className="font-mono text-red-700 font-bold">-{formatCurrency(d.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : viewingSale.discountDescription ? (
+                <div className="border-t border-slate-200 pt-4 pb-1 text-left">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1 text-red-500">Justificativa do Desconto</span>
+                  <p className="text-[10.5px] text-red-800 bg-red-50/50 p-2.5 rounded-xl border border-red-100/80 leading-relaxed italic">
+                    {viewingSale.discountDescription}
+                  </p>
+                </div>
+              ) : null}
 
               {/* Signatures Area */}
               <div className="grid grid-cols-2 gap-6 pt-8 pb-4 border-t border-slate-100">
