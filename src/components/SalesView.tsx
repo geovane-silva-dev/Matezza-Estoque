@@ -52,6 +52,8 @@ export const SalesView: React.FC = () => {
   const [tax, setTax] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'Dinheiro' | 'Cartão' | 'Boleto'>('PIX');
   const [saleStatus, setSaleStatus] = useState<'Paga' | 'Pendente'>('Paga');
+  const [description, setDescription] = useState('');
+  const [paymentTerm, setPaymentTerm] = useState('');
 
   // Sales History filter states
   const [historySearch, setHistorySearch] = useState('');
@@ -168,7 +170,9 @@ export const SalesView: React.FC = () => {
       tax,
       total: cartTotal,
       paymentMethod,
-      status: saleStatus
+      status: saleStatus,
+      description: description || undefined,
+      paymentTerm: saleStatus === 'Pendente' ? (paymentTerm || undefined) : undefined
     });
 
     // Clear Cart
@@ -179,6 +183,8 @@ export const SalesView: React.FC = () => {
     setTax(0);
     setPaymentMethod('PIX');
     setSaleStatus('Paga');
+    setDescription('');
+    setPaymentTerm('');
 
     showToast('Venda finalizada com sucesso! Recibo gerado.', 'success');
   };
@@ -353,8 +359,36 @@ export const SalesView: React.FC = () => {
     doc.text("Método Liquidação:", 120, currentY);
     doc.text(viewingSale.paymentMethod, 170, currentY);
 
+    if (viewingSale.paymentTerm) {
+      currentY += 4;
+      doc.text("Prazo de Pagamento:", 120, currentY);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text(viewingSale.paymentTerm, 170, currentY);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    }
+
+    if (viewingSale.description) {
+      currentY += 10;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      doc.text("OBSERVAÇÕES DO DOCUMENTO", 20, currentY);
+
+      currentY += 4;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      
+      const splitText = doc.splitTextToSize(viewingSale.description, 170);
+      doc.text(splitText, 20, currentY);
+      
+      currentY += (splitText.length * 4.5);
+    }
+
     // Signatures Area
-    currentY = Math.max(currentY + 25, 185); // ensure it sits at a clean vertical position
+    currentY = Math.max(currentY + 15, 185); // ensure it sits at a clean vertical position
     
     doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
     doc.setLineWidth(0.25);
@@ -578,6 +612,36 @@ export const SalesView: React.FC = () => {
                 </div>
               </div>
 
+              {/* Payment Term Options */}
+              {saleStatus === 'Pendente' && (
+                <div className="space-y-2.5 animate-fadeIn p-3.5 bg-slate-950/40 border border-slate-800/80 rounded-2xl">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Prazo de Vencimento / Pagamento</label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {['30 dias', '30/60 dias', '30/60/90 dias'].map((term) => (
+                      <button
+                        key={term}
+                        type="button"
+                        onClick={() => setPaymentTerm(term)}
+                        className={`py-1.5 px-2 text-[10px] font-bold rounded-lg border transition-all ${
+                          paymentTerm === term
+                            ? 'bg-emerald-500/15 border-emerald-500/80 text-emerald-400'
+                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {term}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={paymentTerm}
+                    onChange={(e) => setPaymentTerm(e.target.value)}
+                    placeholder="Outro prazo (ex: 15 dias, 45 dias...)"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500/40"
+                  />
+                </div>
+              )}
+
               {/* Sale status toggle */}
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Status do Lançamento</label>
@@ -599,6 +663,18 @@ export const SalesView: React.FC = () => {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Description Option */}
+              <div className="space-y-1.5 animate-fadeIn">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Descrição / Observações da Venda</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Ex: Condições de pagamento, observações de entrega, detalhes adicionais..."
+                  rows={2}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500/40 resize-none"
+                />
               </div>
 
               {/* Discount and tax */}
@@ -728,7 +804,7 @@ export const SalesView: React.FC = () => {
                       <td className="py-3.5 px-4 font-semibold">{sale.clientName}</td>
                       <td className="py-3.5 px-4">
                         <span className="px-2 py-0.5 rounded-md font-semibold text-[10px] bg-slate-800 text-slate-300">
-                          {sale.paymentMethod}
+                          {sale.paymentMethod}{sale.paymentTerm ? ` (${sale.paymentTerm})` : ''}
                         </span>
                       </td>
                       <td className="py-3.5 px-4">
@@ -892,12 +968,28 @@ export const SalesView: React.FC = () => {
                     <span>Total Líquido:</span>
                     <span className="text-sm font-black font-mono">{formatCurrency(viewingSale.total)}</span>
                   </div>
-                  <div className="flex justify-between text-[10px] text-slate-500 pt-1">
+                   <div className="flex justify-between text-[10px] text-slate-500 pt-1">
                     <span>Método Liquidação:</span>
                     <span className="uppercase">{viewingSale.paymentMethod}</span>
                   </div>
+                  {viewingSale.paymentTerm && (
+                    <div className="flex justify-between text-[10px] text-slate-500">
+                      <span>Prazo de Pagamento:</span>
+                      <span className="font-bold text-slate-900">{viewingSale.paymentTerm}</span>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {/* Document Description / Observations */}
+              {viewingSale.description && (
+                <div className="border-t border-slate-200 pt-4 pb-1 text-left">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Observações do Documento</span>
+                  <p className="text-[10.5px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200/60 leading-relaxed italic">
+                    {viewingSale.description}
+                  </p>
+                </div>
+              )}
 
               {/* Signatures Area */}
               <div className="grid grid-cols-2 gap-6 pt-8 pb-4 border-t border-slate-100">

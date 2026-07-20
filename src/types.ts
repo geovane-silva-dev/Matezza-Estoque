@@ -65,6 +65,8 @@ export interface Sale {
   receiptId: string;
   createdAt: string;
   updatedAt: string;
+  description?: string;
+  paymentTerm?: string;
 }
 
 export interface ProductionRawMaterial {
