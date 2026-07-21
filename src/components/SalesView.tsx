@@ -37,6 +37,7 @@ export const SalesView: React.FC = () => {
     sales,
     products,
     clients,
+    settings,
     addSale,
     deleteSale,
     clearSalesHistory,
@@ -277,7 +278,7 @@ export const SalesView: React.FC = () => {
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-    doc.text("MATEZZA INDUSTRIAL LTDA", 20, 30);
+    doc.text(settings?.companyName || "MATEZZA INDUSTRIAL IND", 20, 30);
     
     doc.setFont("helvetica", "normal");
     doc.text("CNPJ: 63.988.590/0001-22 | Tel: (42) 8807-9911", 20, 34);
@@ -1045,7 +1046,7 @@ export const SalesView: React.FC = () => {
                     <div className="w-8 h-8 bg-slate-950 text-white rounded-lg flex items-center justify-center font-bold font-mono">M</div>
                     <span className="text-xl font-black tracking-widest text-slate-950 font-sans">MATEZZA</span>
                   </div>
-                  <span className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">MATEZZA INDUSTRIAL LTDA</span>
+                  <span className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">{settings?.companyName || "MATEZZA INDUSTRIAL IND"}</span>
                   <p className="text-[10px] text-slate-500 mt-1 max-w-[200px]">CNPJ: 63.988.590/0001-22 | Tel: (42) 8807-9911 | São Mateus do Sul, PR</p>
                 </div>
                 <div className="text-right">

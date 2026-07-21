@@ -139,7 +139,7 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [settings, setSettings] = useState<Settings>({
     darkMode: true,
     language: 'pt',
-    companyName: 'MATEZZA INDUSTRIAL LTDA',
+    companyName: 'MATEZZA INDUSTRIAL IND',
     companyLogo: ''
   });
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -164,7 +164,7 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSettings({
           darkMode: true,
           language: 'pt',
-          companyName: 'MATEZZA INDUSTRIAL LTDA',
+          companyName: 'MATEZZA INDUSTRIAL IND',
           companyLogo: ''
         });
         localStorage.setItem('matezza_users', JSON.stringify(initialUsers));
@@ -279,6 +279,10 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const parsed = JSON.parse(storedSettings);
         if (parsed && parsed.companyLogo && parsed.companyLogo.includes('photo-1599305445671-ac291c95aaa9')) {
           parsed.companyLogo = '';
+          localStorage.setItem('matezza_settings', JSON.stringify(parsed));
+        }
+        if (parsed && (!parsed.companyName || parsed.companyName.includes('LTDA'))) {
+          parsed.companyName = parsed.companyName ? parsed.companyName.replace(/LTDA/gi, 'IND') : 'MATEZZA INDUSTRIAL IND';
           localStorage.setItem('matezza_settings', JSON.stringify(parsed));
         }
         setSettings(parsed);
@@ -1047,7 +1051,7 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSettings({
       darkMode: true,
       language: 'pt',
-      companyName: 'MATEZZA INDUSTRIAL LTDA',
+      companyName: 'MATEZZA INDUSTRIAL IND',
       companyLogo: ''
     });
     setAuditLogs([]);
